@@ -1,0 +1,353 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Category model 
+model Category {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries     JournalEntry[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([name, userId])
+  @@index([userId])
+}
+
+model User {
+  id             String          @id @default(cuid())
+  clerkId        String?         @unique  // Clerk user ID
+  email          String?         @unique
+  name           String?
+  image          String?
+  password       String?         // Only for email/password auth
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  
+  // Relations
+  profile        UserProfile?
+  journalEntries JournalEntry[]
+  journalEntries2 JournalEntry2[] // New relation for enhanced journal entries
+  tags           Tag[]
+  journals       Journal[]
+  oldReflection  OldReflection?    // One-to-one relationship (renamed from Reflection)
+  reflections    ReflectionEntry[] // New many-to-one relationship for reflection entries
+  preferences    UserPreference?
+  goals          Goal[]
+  happinessIngredients HappinessIngredient[]
+  categories     Category[]
+  userStat       UserStat?       // For previous check-in stats
+  userStats      UserStats?      // New improved stats tracking
+  threads        Thread[]        // New relation for threads
+}
+
+model UserProfile {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Goal relationship
+  goalId             String?
+  goal               JournalCategory? @relation(fields: [goalId], references: [id])
+  
+  // Profile fields
+  ageGroup           String?
+  gender             String?
+  occupation         String?
+  relationshipStatus String?
+  faithOrientation   String?
+  struggle           String?
+  journalTime        String?
+  onboardingCompleted Boolean  @default(false)
+  
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  
+  @@index([userId])
+}
+
+model Journal {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries     JournalEntry[]
+  isDefault   Boolean        @default(false)
+  
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  @@index([userId])
+}
+
+model JournalEntry {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journalId     String?
+  journal       Journal?        @relation(fields: [journalId], references: [id])
+  categoryId    String?         // Add category relation
+  category      Category?       @relation(fields: [categoryId], references: [id])
+  
+  // Content fields
+  title         String
+  content       String
+  mood          String?
+  isFirstEntry  Boolean         @default(false)
+  
+  // Relations
+  tags          TagsOnEntries[]
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  @@index([userId])
+  @@index([journalId])
+  @@index([categoryId])
+}
+
+// New enhanced journal entry model
+model JournalEntry2 {
+  id            String   @id @default(cuid())
+  title         String
+  content       String   @db.Text
+  tags          String[]
+  metrics       Json     // Store mood, energy, clarity as JSON
+  insights      String[]
+  isAIGenerated Boolean  @default(false)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@map("JournalEntries2") // Use a new table name
+}
+
+model JournalCategory {
+  id          String         @id @default(cuid())
+  label       String
+  description String?
+  icon        String?
+  
+  // Relations
+  profiles    UserProfile[]
+  
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Tag {
+  id        String          @id @default(cuid())
+  name      String
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries   TagsOnEntries[]
+  
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  
+  @@unique([name, userId])
+  @@index([userId])
+}
+
+model TagsOnEntries {
+  id             String       @id @default(cuid())
+  journalEntryId String
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  tagId          String
+  tag            Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  createdAt      DateTime     @default(now())
+  
+  @@unique([journalEntryId, tagId])
+  @@index([journalEntryId])
+  @@index([tagId])
+}
+
+// Renamed from Reflection to OldReflection to avoid conflicts
+model OldReflection {
+  id                 String       @id @default(cuid())
+  userId             String       @unique  // Make it unique for one-to-one relationship
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // First entry data
+  firstEntryPriority String?
+  firstEntryWorry    String?
+  firstEntryPositive String?
+  
+  // Reflection responses
+  priorityReflection String?
+  worryReflection    String?
+  positiveReflection String?
+  
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  
+  @@index([userId])
+  @@map("Reflection") // Maps to the existing table name
+}
+
+// New ReflectionEntry model for storing multiple reflections per user
+model ReflectionEntry {
+  id            String   @id @default(cuid())
+  title         String
+  content       String   @db.Text
+  tags          String[]
+  metrics       Json     // Store mood, energy, clarity as JSON
+  insights      String[]
+  isAIGenerated Boolean  @default(false)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@map("ReflectionEntries") // Use a new table name
+}
+
+// Goal model for tracking user goals
+model Goal {
+  id          String   @id @default(cuid())
+  name        String
+  type        String
+  description String?  @db.Text
+  deadline    DateTime
+  progress    Int      @default(0)
+  
+  // User relationship
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+// HappinessIngredient model for tracking happiness habits
+model HappinessIngredient {
+  id          String   @id @default(cuid())
+  name        String
+  category    String
+  frequency   String
+  importance  String
+  isCompleted Boolean  @default(false)
+  
+  // User relationship
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+// Existing User Stats model for tracking check-ins and streaks
+model UserStat {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  totalEntries  Int       @default(0)
+  currentStreak Int       @default(0)
+  longestStreak Int       @default(0)
+  lastCheckIn   DateTime?
+  wordCount     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([userId])
+}
+
+// New improved user stats model with today entry tracking
+model UserStats {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  currentStreak Int      @default(0)
+  longestStreak Int      @default(0)
+  totalEntries  Int      @default(0)
+  wordCount     Int      @default(0)
+  hasTodayEntry Boolean  @default(false)
+  lastUpdateDate DateTime @default(now())
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+model UserPreference {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // UI preferences
+  theme                String   @default("system")
+  fontSize             String   @default("medium")
+  
+  // Journal preferences
+  defaultJournalId     String?
+  
+  // Reminder settings
+  reminderTime         DateTime?
+  reminderEnabled      Boolean  @default(false)
+  
+  // Feature toggles
+  aiReflectionsEnabled Boolean  @default(true)
+  aiCategoriesEnabled  Boolean  @default(true)
+  trackMood            Boolean  @default(true)
+  trackCategories      Boolean  @default(true)
+  
+  // Notification preferences
+  emailNotifications   Boolean  @default(true)
+  pushNotifications    Boolean  @default(false)
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+model APIKey {
+  id        String   @id @default(cuid())
+  service   String   // e.g., "gemini", "openai"
+  keyName   String   // e.g., "primary", "secondary"
+  keyValue  String   // Encrypted API key value
+  isActive  Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([service, keyName])
+  @@index([service, isActive])
+}
+
+// Thread model for storing conversation threads
+model Thread {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text
+  model     String   @default("claude")
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}

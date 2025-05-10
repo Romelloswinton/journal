@@ -1,103 +1,178 @@
-import Image from "next/image";
+// app/page.tsx
+"use client"
 
-export default function Home() {
+import React, { useState, useEffect } from "react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Flower } from "lucide-react"
+import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
+import { ContinueButton } from "@/components/ui/ContinueButton"
+import { SignInButton, useAuth } from "@clerk/nextjs"
+
+export default function LandingPage() {
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+  const { isSignedIn, isLoaded } = useAuth()
+
+  // Redirect to dashboard if already signed in
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      router.push("/dashboard")
+    }
+  }, [isLoaded, isSignedIn, router])
+
+  // Show loading state until auth is loaded
+  if (!isLoaded) {
+    return (
+      <div
+        className="h-screen w-full flex items-center justify-center"
+        style={{
+          background:
+            "radial-gradient(circle at center, #ff5bae 0%, #ef4da0 25%, #d53a88 50%, #b92877 75%, #9c1665 100%)",
+          backgroundSize: "200% 200%",
+          animation: "gradient 15s ease infinite",
+        }}
+      >
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+      </div>
+    )
+  }
+
+  // If signed in, we'll redirect (handled in the useEffect)
+  // This is just a fallback in case the redirect doesn't happen immediately
+  if (isSignedIn) {
+    return null
+  }
+
+  const handleBeginJourney = () => {
+    setIsLoading(true)
+
+    // Navigate to the unified onboarding page
+    setTimeout(() => {
+      router.push("/onboarding")
+      setIsLoading(false)
+    }, 800)
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div
+      className="h-screen w-full flex items-center justify-center p-4"
+      style={{
+        background:
+          "radial-gradient(circle at center, #ff5bae 0%, #ef4da0 25%, #d53a88 50%, #b92877 75%, #9c1665 100%)",
+        backgroundSize: "200% 200%",
+        animation: "gradient 15s ease infinite",
+      }}
+    >
+      {/* Main Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Card className="max-w-md w-full rounded-2xl bg-white/10 backdrop-blur-md shadow-xl border-none">
+          <CardContent className="p-8 flex flex-col items-center">
+            {/* Logo */}
+            <motion.div
+              className="mb-6 text-white"
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <Flower size={48} />
+            </motion.div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+            {/* Title */}
+            <motion.h1
+              className="text-2xl font-bold text-white text-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              Welcome to Rosebud
+            </motion.h1>
+
+            {/* Subtitle */}
+            <motion.p
+              className="text-sm text-white/80 text-center mt-2 mb-8"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
+              The #1 AI-powered journal for personal growth and mental health
+            </motion.p>
+
+            {/* Dashed Arrow */}
+            <motion.div
+              className="h-10 w-px border-l-2 border-dashed border-white/40 mb-8"
+              initial={{ height: 0 }}
+              animate={{ height: 40 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+            {/* CTA Button */}
+            <motion.div
+              className="w-full relative"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.6 }}
+            >
+              <ContinueButton
+                onClick={handleBeginJourney}
+                isSubmitting={isLoading}
+                label="Begin your journey"
+                className="w-full bg-white text-pink-800 hover:bg-white/90 hover:scale-105 transition-transform font-medium"
+                variant="default"
+                size="lg"
+              />
+            </motion.div>
+
+            {/* Sign In Button */}
+            <motion.div
+              className="mt-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.7 }}
+            >
+              <SignInButton mode="modal">
+                <button className="text-xs text-white/70 underline text-center cursor-pointer hover:text-white transition-colors">
+                  I already have an account
+                </button>
+              </SignInButton>
+            </motion.div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* CSS for background animation */}
+      <style jsx global>{`
+        @keyframes gradient {
+          0% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: 0% 50%;
+          }
+        }
+
+        @keyframes appear {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-appear {
+          animation: appear 0.3s ease forwards;
+        }
+      `}</style>
     </div>
-  );
+  )
 }

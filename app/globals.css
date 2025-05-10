@@ -1,26 +1,256 @@
+/* app/globals.css - updated */
 @import "tailwindcss";
 
+/* Define color scheme for light mode (default) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --radius: 0.625rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Improved dark mode selector to ensure it applies globally */
+:root.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.145 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --ring: oklch(0.439 0 0);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Define border-border utility */
+.border-border {
+  border-color: var(--border);
+}
+
+/* Specific dark mode utilities for tailwind */
+@layer utilities {
+  .dark\:bg-background {
+    background-color: var(--background);
+  }
+  .dark\:text-foreground {
+    color: var(--foreground);
+  }
+  .dark\:border-border {
+    border-color: var(--border);
   }
 }
 
-body {
-  background: var(--background);
+/* Force dark mode on elements when theme is dark */
+:root.dark body,
+:root.dark .bg-background {
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+:root.dark .text-foreground {
+  color: var(--foreground);
+}
+
+:root.dark .bg-card {
+  background-color: var(--card);
+}
+
+:root.dark .text-card-foreground {
+  color: var(--card-foreground);
+}
+
+:root.dark .border-border {
+  border-color: var(--border);
+}
+
+/* Fix for transparent dropdowns */
+.dropdown-menu-content,
+[data-radix-popper-content-wrapper],
+[role="menu"],
+[role="dialog"] {
+  background-color: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  border-color: var(--border) !important;
+}
+
+/* Fix for Radix UI components in dark mode */
+:root.dark [data-radix-popper-content-wrapper],
+:root.dark [role="menu"],
+:root.dark [role="dialog"],
+:root.dark [cmdk-overlay],
+:root.dark [cmdk-dialog] {
+  background-color: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  border-color: var(--border) !important;
+}
+
+/* Ensure dropdown items and content use correct background colors */
+.dark [data-state="open"] > [data-radix-popper-content-wrapper],
+.dark [data-state="open"] [role="menu"],
+.dark [data-state="open"] [role="dialog"] {
+  background-color: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  border-color: var(--border) !important;
+}
+
+/* Apply correct styles to dropdown menu items */
+[role="menuitem"]:focus,
+[role="menuitem"]:hover {
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+
+/* Fix for command menu and other similar components */
+div[cmdk-root],
+div[cmdk-input-wrapper],
+input[cmdk-input],
+div[cmdk-item] {
+  background-color: var(--background);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+:root.dark div[cmdk-root],
+:root.dark div[cmdk-input-wrapper],
+:root.dark input[cmdk-input],
+:root.dark div[cmdk-item] {
+  background-color: var(--background);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+/* Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Transition effects for theme switching */
+.theme-transition * {
+  transition-property: color, background-color, border-color,
+    text-decoration-color, fill, stroke !important;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition-duration: 200ms !important;
+}
+
+/* Specific fixes for Clerk elements in dark mode */
+:root.dark [data-clerk-component],
+:root.dark [data-clerk-ui-component],
+:root.dark [data-clerk-component] * {
+  --clerk-background: var(--background) !important;
+  --clerk-text-color: var(--foreground) !important;
+  --clerk-footer-text-color: var(--muted-foreground) !important;
+}
+
+/* Fix for popover content */
+[data-radix-popper-content-wrapper] [role="tooltip"],
+[data-radix-popper-content-wrapper] [role="dialog"] {
+  background-color: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Specific shadcn fixes */
+.dark [data-theme="dark"] {
+  --background: var(--background) !important;
+  --foreground: var(--foreground) !important;
+}
+
+/* Ensure proper contrast for form elements */
+input,
+textarea,
+select,
+button {
+  color: var(--foreground);
+  background-color: var(--background);
+  border-color: var(--border);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted-foreground);
+}
+
+/* Readability improvements for text content */
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+span,
+div {
+  color: var(--foreground);
+}
+
+/* Content editable area styles for journal entries */
+[contenteditable="true"] ul {
+  list-style-type: disc;
+  margin-left: 20px;
+  padding-left: 20px;
+}
+
+[contenteditable="true"] ol {
+  list-style-type: decimal;
+  margin-left: 20px;
+  padding-left: 20px;
+}
+
+[contenteditable="true"] {
+  spellcheck: true;
+}
+
+.spelling-error {
+  text-decoration: wavy underline red;
+}
+
+.thick-strikethrough {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+/* Target any element with strikethrough applied by execCommand */
+[style*="text-decoration: line-through"] {
+  text-decoration-thickness: 2px !important;
 }
