@@ -1,46 +1,55 @@
+// app/dashboard/_components/AskRosebud.tsx
 "use client"
 
 import { useState } from "react"
-import { Search, Loader2 } from "lucide-react"
+import { Search, Loader2, MessageSquare } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { toast } from "sonner"
-import useJournalStore from "@/app/store/journalStore"
+import useRosebudStore from "@/app/store/rosebudStore"
 
 export default function AskRosebud() {
-  const [query, setQuery] = useState("")
-  const [isGenerating, setIsGenerating] = useState(false)
   const router = useRouter()
-  const { generateAIEntry } = useJournalStore()
+  const { currentQuery, currentResponse, isGenerating, setQuery, askRosebud } =
+    useRosebudStore()
 
   // Suggested reflection prompts
   const suggestedPrompts = [
     "What are my coping mechanisms?",
-    "What ignites my passion and creativity?",
-    "What are my potential blind spots?",
-    "How have my priorities changed in the last year?",
-    "What habits have been most impactful for me?",
+    "What patterns appear in my good days?",
+    "What recurring themes are in my entries?",
+    "How have my priorities changed recently?",
+    "What habits impact my wellbeing most?",
   ]
 
   // Handle prompt submission
   const handleSubmit = async (promptText: string) => {
     if (!promptText.trim()) return
 
-    setIsGenerating(true)
     try {
-      // Generate the entry using journal store
-      const generatedEntry = await generateAIEntry(promptText)
-
-      // Redirect to the generated entry
-      toast.success("Your AI reflection has been created!")
-      router.push(`/journal/${generatedEntry.id}`)
+      // Generate response with Rosebud
+      await askRosebud(promptText)
     } catch (error) {
-      console.error("Error generating reflection:", error)
-      toast.error("Failed to generate reflection. Please try again.")
-    } finally {
-      setIsGenerating(false)
+      console.error("Error asking Rosebud:", error)
+      toast.error("Failed to get a response. Please try again.")
     }
+  }
+
+  // Handle creating a journal entry from response
+  const handleCreateJournalEntry = () => {
+    if (!currentResponse) return
+
+    // Store the response in session storage to use on the journal create page
+    sessionStorage.setItem("rosebudInsight", currentResponse)
+    sessionStorage.setItem(
+      "rosebudQuery",
+      currentQuery || "Reflection with Rosebud"
+    )
+
+    // Navigate to journal creation page
+    router.push("/journal/new")
   }
 
   return (
@@ -49,7 +58,6 @@ export default function AskRosebud() {
         💬 ASK ROSEBUD
       </h3>
       <Card className="bg-card border-border shadow-sm">
-        {/* Added fixed height to match HappinessRecipe */}
         <CardContent className="p-4 h-[400px] flex flex-col">
           <div className="relative mb-4">
             <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 transform -translate-y-1/2" />
@@ -57,9 +65,9 @@ export default function AskRosebud() {
               type="text"
               placeholder="Ask Rosebud anything about yourself..."
               className="w-full pl-9 pr-4 py-2 bg-muted border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-foreground text-sm"
-              value={query}
+              value={currentQuery}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit(query)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit(currentQuery)}
               disabled={isGenerating}
             />
 
@@ -72,7 +80,7 @@ export default function AskRosebud() {
 
           {/* Flex-grow div to push content to the top and button to the bottom */}
           <div className="flex-grow overflow-y-auto pr-1">
-            {!isGenerating && (
+            {!isGenerating && !currentResponse && (
               <div className="space-y-3">
                 <p className="text-xs text-muted-foreground font-medium">
                   Suggested reflections:
@@ -103,20 +111,53 @@ export default function AskRosebud() {
                 </p>
               </div>
             )}
+
+            {currentResponse && !isGenerating && (
+              <div className="bg-pink-50 dark:bg-pink-950/30 p-3 rounded-md">
+                <p className="text-pink-800 dark:text-pink-300 mb-1 text-sm font-medium">
+                  Rosebud's Response:
+                </p>
+                <p className="text-sm text-pink-700 dark:text-pink-400 mb-3 whitespace-pre-line">
+                  {currentResponse}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-300 hover:bg-pink-100 dark:hover:bg-pink-900/30"
+                  onClick={handleCreateJournalEntry}
+                >
+                  Add to journal
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Button always at the bottom */}
-          {!isGenerating && (
+          {!isGenerating && !currentResponse && (
             <div className="mt-3">
               <Button
                 className="w-full bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 text-white h-9 text-sm"
-                onClick={() => handleSubmit(query)}
-                disabled={!query.trim()}
+                onClick={() => handleSubmit(currentQuery)}
+                disabled={!currentQuery.trim()}
               >
-                Generate Reflection
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Ask Rosebud
               </Button>
             </div>
           )}
+
+          {/* Link to full Rosebud experience */}
+          <div className="flex justify-end mt-2">
+            <Link href="/rosebud">
+              <Button
+                variant="link"
+                size="sm"
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                View full experience →
+              </Button>
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

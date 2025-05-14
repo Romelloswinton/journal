@@ -1,7 +1,7 @@
 import { create } from "zustand"
 import { JournalEntry } from "@/app/store/journalStore"
-import { journalService } from "@/services/journalService"
 import { statsService, UserStats } from "@/services/statsService"
+import { journalService } from "@/services/journalService"
 
 interface DashboardState {
   // State

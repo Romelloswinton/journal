@@ -3,9 +3,9 @@ import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { v4 as uuidv4 } from "uuid"
 import useDashboardStore from "./dashboardStore"
-import { journalService } from "@/services/journalService"
 import { JournalTemplate } from "@/data/journalTemplatesData"
 import { toast } from "sonner"
+import { journalService } from "@/services/journalService"
 
 // Types and interfaces
 export interface JournalMetrics {
@@ -56,7 +56,7 @@ interface JournalEntryState {
     content?: string
   ) => Promise<JournalEntry>
   updateEntry: (id: string, data: Partial<JournalEntry>) => Promise<void>
-  deleteEntry: (id: string) => Promise<void>
+  deleteEntry: (id: string) => Promise<boolean>
   generateAIEntry: (prompt: string) => Promise<JournalEntry>
   viewEntry: (id: string) => void // Track entry view for recently viewed
 
@@ -237,7 +237,8 @@ const useJournalStore = create<JournalEntryState>()(
         const originalEntry = get().entries.find((entry) => entry.id === id)
 
         if (!originalEntry) {
-          throw new Error("Entry not found")
+          toast.error("Entry not found")
+          return Promise.reject(new Error("Entry not found"))
         }
 
         // Optimistic update
@@ -260,6 +261,7 @@ const useJournalStore = create<JournalEntryState>()(
           get().viewEntry(id)
 
           toast.success("Journal entry updated successfully")
+          return Promise.resolve()
         } catch (error) {
           console.error(`Failed to update journal entry ${id}:`, error)
 
@@ -272,50 +274,56 @@ const useJournalStore = create<JournalEntryState>()(
           }))
 
           toast.error("Failed to update journal entry")
-          throw error
+          return Promise.reject(error)
         }
       },
 
       // Delete a journal entry
       deleteEntry: async (id: string) => {
-        // Store deleted entry for rollback
-        const deletedEntry = get().entries.find((entry) => entry.id === id)
-
-        if (!deletedEntry) {
-          throw new Error("Entry not found")
-        }
-
-        // Optimistic update
-        set((state) => ({
-          entries: state.entries.filter((entry) => entry.id !== id),
-          recentlyViewed: state.recentlyViewed.filter(
-            (entryId) => entryId !== id
-          ),
-        }))
-
         try {
-          // Actual API call
+          // Set loading state specifically for this deletion
+          set((state) => ({
+            isLoading: true,
+            error: null,
+          }))
+
+          // Store deleted entry for rollback
+          const deletedEntry = get().entries.find((entry) => entry.id === id)
+
+          if (!deletedEntry) {
+            set({ isLoading: false })
+            toast.error("Entry not found")
+            return false
+          }
+
+          // Make the API call BEFORE updating the local state
           await journalService.deleteEntry(id)
 
-          // Update stats after deleting an entry
+          // Only update state AFTER successful API call
+          set((state) => ({
+            entries: state.entries.filter((entry) => entry.id !== id),
+            recentlyViewed: state.recentlyViewed.filter(
+              (entryId) => entryId !== id
+            ),
+            isLoading: false,
+          }))
+
+          // Update stats after successful deletion
           get().updateStats()
 
           toast.success("Journal entry deleted successfully")
+          return true
         } catch (error) {
           console.error(`Failed to delete journal entry ${id}:`, error)
 
-          // Rollback on error
-          set((state) => ({
-            entries: [...state.entries, deletedEntry].sort(
-              (a, b) =>
-                new Date(b.createdAt).getTime() -
-                new Date(a.createdAt).getTime()
-            ),
+          // Reset loading state on error
+          set({
+            isLoading: false,
             error: "Failed to delete journal entry. Please try again.",
-          }))
+          })
 
           toast.error("Failed to delete journal entry")
-          throw error
+          return false
         }
       },
 
@@ -329,6 +337,7 @@ const useJournalStore = create<JournalEntryState>()(
           // Add the generated entry to our list
           set((state) => ({
             entries: [generatedEntry, ...state.entries],
+            isLoading: false,
           }))
 
           // Add to recently viewed
@@ -341,12 +350,13 @@ const useJournalStore = create<JournalEntryState>()(
           return generatedEntry
         } catch (error) {
           console.error("Failed to generate AI journal entry:", error)
-          set({ error: "Failed to generate AI entry. Please try again." })
+          set({
+            error: "Failed to generate AI entry. Please try again.",
+            isLoading: false,
+          })
 
           toast.error("Failed to generate AI journal entry")
           throw error
-        } finally {
-          set({ isLoading: false })
         }
       },
 

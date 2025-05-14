@@ -50,6 +50,7 @@ model User {
   userStat       UserStat?       // For previous check-in stats
   userStats      UserStats?      // New improved stats tracking
   threads        Thread[]        // New relation for threads
+  rosebudConversations RosebudConversation[]
 }
 
 model UserProfile {
@@ -175,6 +176,21 @@ model TagsOnEntries {
   @@unique([journalEntryId, tagId])
   @@index([journalEntryId])
   @@index([tagId])
+}
+
+model RosebudConversation {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  query     String           @db.Text
+  response  String           @db.Text
+  messages  String?          @db.Text  // Store messages as JSON string
+  label     String?          // Field for labeling conversations
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  
+  @@index([userId])
+  @@index([updatedAt])      // Add index on updatedAt for efficient sorting
 }
 
 // Renamed from Reflection to OldReflection to avoid conflicts

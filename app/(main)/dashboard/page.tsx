@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx
 "use client"
 
 import { useEffect, useState } from "react"
@@ -20,7 +21,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { format, subDays, isSameDay, startOfDay, endOfDay } from "date-fns"
-import { DayIndicator } from "./_components/DayIndicator"
+import { WeeklyIndicator } from "./_components/WeeklyIndicator"
 import { StatsCard } from "./_components/StatsCard"
 import HappinessRecipe from "./_components/HappinessRecipe"
 import AskRosebud from "./_components/AskRosebud"
@@ -106,25 +107,8 @@ export default function DashboardPage() {
     )
   }
 
-  // Get current date info and create day indicators for the past week
+  // Get current date info
   const currentDate = new Date()
-  const dayLabels = ["S", "M", "T", "W", "T", "F", "S"]
-  const days = Array(7)
-    .fill(null)
-    .map((_, index) => {
-      const date = subDays(currentDate, 6 - index)
-      const dayIndex = date.getDay() // 0 = Sunday, 1 = Monday, etc.
-
-      return {
-        date,
-        day: dayLabels[dayIndex],
-        label: format(date, "EEE"),
-        isToday: isSameDay(date, currentDate),
-        isCompleted: completedDays.some((completedDay) =>
-          isSameDay(completedDay, date)
-        ),
-      }
-    })
 
   // Check if there's an entry from today
   const hasTodayEntry = completedDays.some((date) =>
@@ -155,16 +139,13 @@ export default function DashboardPage() {
               <h2 className="text-2xl font-semibold text-foreground mb-4">
                 {format(currentDate, "EEEE, MMMM do")}
               </h2>
-              <div className="flex items-center gap-2">
-                {days.map((dayInfo, index) => (
-                  <DayIndicator
-                    key={index}
-                    day={dayInfo.day}
-                    isActive={dayInfo.isToday}
-                    isCompleted={dayInfo.isCompleted}
-                  />
-                ))}
-                <div className="w-8 h-8 rounded-full border border-muted flex items-center justify-center">
+              <div className="flex items-center">
+                {/* Using the new WeeklyIndicator component */}
+                <WeeklyIndicator
+                  currentDate={currentDate}
+                  completedDays={completedDays}
+                />
+                <div className="w-8 h-8 rounded-full border border-muted flex items-center justify-center ml-2">
                   <Calendar className="w-4 h-4 text-muted-foreground" />
                 </div>
               </div>

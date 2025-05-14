@@ -11,11 +11,12 @@ import {
   Sparkles,
   Bot,
   FileText,
+  MessageSquare,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardHeader } from "@/components/ui/card"
+import { Card, CardHeader, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -43,6 +44,7 @@ interface JournalFormProps {
     colorScheme?: string
   }
   isEditing?: boolean
+  initialContent?: string
 }
 
 export function JournalForm({
@@ -59,6 +61,7 @@ export function JournalForm({
     isAIGenerated: false,
   },
   isEditing = false,
+  initialContent = "",
 }: JournalFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -73,13 +76,41 @@ export function JournalForm({
   // Get template ID from URL if present
   const templateId = searchParams.get("template")
 
-  const [formData, setFormData] = useState(initialData)
+  // Initialize formData with initialContent merged if provided
+  const mergedInitialData = {
+    ...initialData,
+    content: initialContent || initialData.content,
+  }
+
+  const [formData, setFormData] = useState(mergedInitialData)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [currentPrompt, setCurrentPrompt] = useState("")
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false)
   const [isUsingPrompt, setIsUsingPrompt] = useState(false)
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(!!templateId)
   const [usedTemplate, setUsedTemplate] = useState<any>(null)
+
+  // For Rosebud insights
+  const [rosebudInsight, setRosebudInsight] = useState<string | null>(null)
+  const [rosebudQuery, setRosebudQuery] = useState<string | null>(null)
+  const [isRosebudVisible, setIsRosebudVisible] = useState(true)
+
+  // Load Rosebud insights from session storage if available
+  useEffect(() => {
+    const insight = sessionStorage.getItem("rosebudInsight")
+    const query = sessionStorage.getItem("rosebudQuery")
+
+    if (insight) {
+      setRosebudInsight(insight)
+      setRosebudQuery(query)
+    }
+
+    // Clean up session storage after reading
+    return () => {
+      sessionStorage.removeItem("rosebudInsight")
+      sessionStorage.removeItem("rosebudQuery")
+    }
+  }, [])
 
   // Load template data if template ID is provided
   useEffect(() => {
@@ -152,6 +183,16 @@ export function JournalForm({
     fetchJournals,
   ])
 
+  // Apply initialContent if provided (for RosebudInsight)
+  useEffect(() => {
+    if (initialContent && !isEditing) {
+      setFormData((prev) => ({
+        ...prev,
+        content: initialContent,
+      }))
+    }
+  }, [initialContent, isEditing])
+
   // Function to fetch a new prompt from the API
   const fetchNewPrompt = async (category?: string) => {
     setIsLoadingPrompt(true)
@@ -212,6 +253,23 @@ export function JournalForm({
         : currentPrompt,
     }))
     setIsUsingPrompt(true)
+  }
+
+  // Handle adding Rosebud insight to journal content
+  const handleAddRosebudInsight = () => {
+    if (rosebudInsight) {
+      setFormData((prev) => ({
+        ...prev,
+        content: prev.content
+          ? `${prev.content}\n\n${rosebudInsight}`
+          : rosebudInsight,
+      }))
+      setIsRosebudVisible(false)
+      toast.success("Rosebud insight added to your journal")
+      // Clear from session storage after adding
+      sessionStorage.removeItem("rosebudInsight")
+      sessionStorage.removeItem("rosebudQuery")
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -324,6 +382,54 @@ export function JournalForm({
         </h1>
         <div className="w-24" /> {/* Spacer for centering */}
       </div>
+
+      {/* Rosebud Insight Card */}
+      {rosebudInsight && isRosebudVisible && (
+        <Card className="bg-pink-50 dark:bg-pink-950/30 border-pink-200 dark:border-pink-800/50 mb-6">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium flex items-center text-pink-800 dark:text-pink-300">
+                <MessageSquare className="h-4 w-4 mr-1.5" />
+                Rosebud Insight: {rosebudQuery}
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 text-pink-700 dark:text-pink-400"
+                onClick={() => setIsRosebudVisible(false)}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </Button>
+            </div>
+
+            <div className="text-sm text-pink-700 dark:text-pink-300 mb-3 whitespace-pre-line max-h-48 overflow-y-auto">
+              {rosebudInsight}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-300 hover:bg-pink-100 dark:hover:bg-pink-900/30"
+              onClick={handleAddRosebudInsight}
+            >
+              Add to journal content
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Template Info (if using a template) */}
       {usedTemplate && !isEditing && (

@@ -2,7 +2,7 @@
 import { create } from "zustand"
 import { devtools, persist } from "zustand/middleware"
 import { toast } from "sonner"
-import { libraryService } from "@/services/libraryService"
+import { libraryService } from "@/prisma/services/libraryService"
 
 // Define types
 export interface Journal {
