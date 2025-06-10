@@ -1,4 +1,4 @@
-// app/rosebud/_components/RosebudChat.tsx
+// app/rosebud/_components/RosebudChat.tsx (Updated portion)
 "use client"
 
 import { useEffect, useState } from "react"
@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import useRosebudStore, { ConversationMessage } from "@/app/store/rosebudStore"
 import LoadedConversationView from "./LoadedConversationView"
 import RegularChatView from "./RegularChatView"
+import FollowUpPrompt from "./FollowUpPrompt"
 
 // Define prop interface for component
 interface RosebudChatProps {
@@ -48,14 +49,111 @@ export default function RosebudChat({
     ConversationMessage[]
   >([])
 
+  // Follow-up prompt state
+  const [showFollowUp, setShowFollowUp] = useState(false)
+  const [lastAIResponse, setLastAIResponse] = useState("")
+  const [lastUserQuestion, setLastUserQuestion] = useState("")
+
+  // NEW: Enhanced function to handle starting a new chat
+  const handleStartNewChat = () => {
+    try {
+      // Store current state for potential undo functionality
+      const previousState = {
+        query: currentQuery,
+        response: currentResponse,
+        loadedConversation: loadedConversation,
+        messages: conversationMessages,
+      }
+
+      // Clear all current conversation state
+      clearCurrentConversation()
+
+      // Reset local state comprehensively
+      setIsViewingLoadedConversation(false)
+      setShouldFocusInput(true) // Focus input for new session
+      setConversationInputQuery("")
+      setConversationMessages([])
+
+      // Reset follow-up state
+      setShowFollowUp(false)
+      setLastAIResponse("")
+      setLastUserQuestion("")
+
+      // Optional: Store in session for potential recovery
+      if (previousState.query || previousState.response) {
+        sessionStorage.setItem(
+          "rosebud_previous_session",
+          JSON.stringify({
+            ...previousState,
+            timestamp: new Date().toISOString(),
+          })
+        )
+      }
+
+      console.log("✅ New chat session started successfully")
+    } catch (error) {
+      console.error("❌ Error starting new chat:", error)
+      toast.error(
+        "There was an issue starting a new chat. Please refresh the page."
+      )
+    }
+  }
+
+  // NEW: Determine if there's an active conversation
+  const hasActiveConversation = Boolean(
+    currentResponse ||
+      loadedConversation ||
+      conversationMessages.length > 0 ||
+      currentQuery.trim()
+  )
+
+  // Watch for response changes to trigger follow-up
+  useEffect(() => {
+    if (currentResponse && !isGenerating && !isViewingLoadedConversation) {
+      console.log("🐛 DEBUG: New response detected, setting up follow-up")
+      setLastAIResponse(currentResponse)
+      setLastUserQuestion(currentQuery)
+
+      const timer = setTimeout(() => {
+        console.log("🐛 DEBUG: Showing follow-up prompt")
+        setShowFollowUp(true)
+      }, 1500)
+
+      return () => clearTimeout(timer)
+    }
+  }, [currentResponse, isGenerating, isViewingLoadedConversation, currentQuery])
+
+  // Watch for conversation response changes
+  useEffect(() => {
+    if (isViewingLoadedConversation && conversationMessages.length > 0) {
+      const lastMessage = conversationMessages[conversationMessages.length - 1]
+      const secondLastMessage =
+        conversationMessages[conversationMessages.length - 2]
+
+      if (lastMessage?.role === "assistant" && !isGenerating) {
+        console.log("🐛 DEBUG: New conversation response detected")
+        setLastAIResponse(lastMessage.content)
+
+        if (secondLastMessage?.role === "user") {
+          setLastUserQuestion(secondLastMessage.content)
+        }
+
+        const timer = setTimeout(() => {
+          console.log("🐛 DEBUG: Showing follow-up prompt for conversation")
+          setShowFollowUp(true)
+        }, 1500)
+
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [conversationMessages, isGenerating, isViewingLoadedConversation])
+
   // Update view state when loadedConversation changes
   useEffect(() => {
     const isLoaded = !!loadedConversation
     setIsViewingLoadedConversation(isLoaded)
 
-    // When a conversation is loaded, initialize the conversation messages and clear input
     if (isLoaded && loadedConversation) {
-      // Initialize conversation with the existing query and response
       const initialMessages: ConversationMessage[] =
         loadedConversation.messages || [
           { role: "user" as const, content: loadedConversation.query },
@@ -63,37 +161,62 @@ export default function RosebudChat({
         ]
       setConversationMessages(initialMessages)
 
-      // Reset both the main query state and our local input state
       setQuery("")
       setConversationInputQuery("")
-
-      // Set flag to trigger focus
       setShouldFocusInput(true)
+
+      setLastAIResponse(loadedConversation.response)
+      setLastUserQuestion(loadedConversation.query)
+      const timer = setTimeout(() => {
+        setShowFollowUp(true)
+      }, 1500)
+
+      return () => clearTimeout(timer)
     }
   }, [loadedConversation, setQuery])
+
+  // Handle suggested questions
+  const handleSuggestedQuestion = (question: string) => {
+    if (isViewingLoadedConversation) {
+      setConversationInputQuery(question)
+      setShowFollowUp(false)
+      setTimeout(() => {
+        handleConversationSubmit(question)
+      }, 100)
+    } else {
+      setQuery(question)
+      setShowFollowUp(false)
+      setTimeout(() => {
+        handleSubmit(question)
+      }, 100)
+    }
+  }
+
+  // Handle input changes to hide follow-up
+  const handleInputChange = (value: string) => {
+    if (value.trim() && showFollowUp) {
+      setShowFollowUp(false)
+    }
+  }
 
   // Handle query submission from the conversation view
   const handleConversationSubmit = async (query: string) => {
     if (!query.trim() || isGenerating) return
 
+    setShowFollowUp(false)
+
     try {
-      // Add user's message to the conversation
       const updatedMessages: ConversationMessage[] = [
         ...conversationMessages,
         { role: "user" as const, content: query },
       ]
       setConversationMessages(updatedMessages)
-
-      // Clear the input
       setConversationInputQuery("")
 
       try {
-        // Call the API to get response
-        const response = await askRosebud(query, true) // Pass true to indicate this is a continuation
+        const response = await askRosebud(query, true)
 
-        // The response could be either the latestResponse or response property from the API
         if (response) {
-          // Check if the last message in our conversation isn't already the response
           const lastMessage =
             conversationMessages[conversationMessages.length - 1]
           const lastMessageIsResponse =
@@ -102,7 +225,6 @@ export default function RosebudChat({
             lastMessage.content === response
 
           if (!lastMessageIsResponse) {
-            // Only add the assistant's response if it's not already the last message
             setConversationMessages((prev: ConversationMessage[]) => [
               ...prev,
               { role: "assistant" as const, content: response },
@@ -110,7 +232,6 @@ export default function RosebudChat({
           }
         }
       } catch (error) {
-        // Add a user-friendly error message to the conversation
         setConversationMessages((prev: ConversationMessage[]) => [
           ...prev,
           {
@@ -132,6 +253,8 @@ export default function RosebudChat({
   const handleSubmit = async (query: string) => {
     if (!query.trim() || isGenerating) return
 
+    setShowFollowUp(false)
+
     try {
       await askRosebud(query)
       onConversationComplete()
@@ -150,11 +273,9 @@ export default function RosebudChat({
 
     if (!response) return
 
-    // Store the response in session storage to use on the journal create page
     sessionStorage.setItem("rosebudInsight", response)
     sessionStorage.setItem("rosebudQuery", query || "Reflection with Rosebud")
 
-    // Navigate to journal creation page
     router.push("/journal/new")
     toast.success("Insight added to the journal editor")
   }
@@ -163,18 +284,15 @@ export default function RosebudChat({
   const handleCopyToClipboard = () => {
     if (!loadedConversation) return
 
-    // If there are additional messages, include them in the copy
     let content = ""
 
     if (conversationMessages.length > 2) {
-      // Format the entire conversation
       content = conversationMessages
         .map((msg: ConversationMessage) => {
           return `${msg.role === "user" ? "User" : "Rosebud"}: ${msg.content}`
         })
         .join("\n\n")
     } else {
-      // Just format the initial Q&A
       content = `Q: ${loadedConversation.query}\n\nA: ${loadedConversation.response}`
     }
 
@@ -186,11 +304,9 @@ export default function RosebudChat({
   const handleExportAsMarkdown = () => {
     if (!loadedConversation) return
 
-    // Create content based on whether there are additional messages
     let content = ""
 
     if (conversationMessages.length > 2) {
-      // Format the entire conversation
       const conversationContent = conversationMessages
         .map((msg: ConversationMessage) => {
           return `### ${msg.role === "user" ? "User" : "Rosebud"}\n\n${
@@ -199,7 +315,6 @@ export default function RosebudChat({
         })
         .join("\n\n")
 
-      // Use updatedAt if available, otherwise use createdAt
       const displayDate =
         loadedConversation.updatedAt || loadedConversation.createdAt
 
@@ -210,7 +325,6 @@ export default function RosebudChat({
         "PPP"
       )}`
     } else {
-      // Just format the initial Q&A
       content = `# ${loadedConversation.label || "Conversation"}\n\nQuery: ${
         loadedConversation.query
       }\n\nResponse: ${loadedConversation.response}\n\nDate: ${format(
@@ -241,8 +355,12 @@ export default function RosebudChat({
     clearCurrentConversation()
     setIsViewingLoadedConversation(false)
     setShouldFocusInput(false)
-    setConversationInputQuery("") // Clear the local input state
-    setConversationMessages([]) // Clear conversation messages
+    setConversationInputQuery("")
+    setConversationMessages([])
+
+    setShowFollowUp(false)
+    setLastAIResponse("")
+    setLastUserQuestion("")
   }
 
   return (
@@ -255,21 +373,35 @@ export default function RosebudChat({
             conversationInputQuery={conversationInputQuery}
             isGenerating={isGenerating}
             shouldFocusInput={shouldFocusInput}
-            onConversationInputChange={setConversationInputQuery}
+            onConversationInputChange={(value) => {
+              setConversationInputQuery(value)
+              handleInputChange(value)
+            }}
             onSubmit={handleConversationSubmit}
             onBackToChat={handleBackToChat}
             onCreateJournalEntry={handleCreateJournalEntry}
             onCopyToClipboard={handleCopyToClipboard}
             onExportAsMarkdown={handleExportAsMarkdown}
+            showFollowUp={showFollowUp}
+            lastAIResponse={lastAIResponse}
+            lastUserQuestion={lastUserQuestion}
+            onSuggestedQuestion={handleSuggestedQuestion}
           />
         ) : (
           <RegularChatView
             currentQuery={currentQuery}
             currentResponse={currentResponse}
             isGenerating={isGenerating}
-            onQueryChange={setQuery}
+            onQueryChange={(value) => {
+              setQuery(value)
+              handleInputChange(value)
+            }}
             onSubmit={handleSubmit}
             onCreateJournalEntry={handleCreateJournalEntry}
+            showFollowUp={showFollowUp && !!currentResponse}
+            lastAIResponse={lastAIResponse}
+            lastUserQuestion={lastUserQuestion}
+            onSuggestedQuestion={handleSuggestedQuestion}
           />
         )}
       </AnimatePresence>

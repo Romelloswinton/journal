@@ -1,4 +1,4 @@
-// app/api/webhook/clerk/route.ts
+// app/api/webhooks/clerk/route.ts
 import { NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { WebhookEvent } from "@clerk/nextjs/server"
@@ -55,43 +55,66 @@ export async function POST(req: Request) {
   // Process the event based on its type
   switch (eventType) {
     case "user.created":
-      // Create a user in your database when a user is created in Clerk
-      await prisma.user.create({
-        data: {
-          id: evt.data.id,
-          name: `${evt.data.first_name || ""} ${
-            evt.data.last_name || ""
-          }`.trim(),
-          email: evt.data.email_addresses?.[0]?.email_address,
-          image: evt.data.image_url,
-        },
-      })
+      try {
+        // Create a user in your database when a user is created in Clerk
+        await prisma.user.create({
+          data: {
+            clerkId: evt.data.id, // Use clerkId field to store Clerk's user ID
+            name:
+              `${evt.data.first_name || ""} ${
+                evt.data.last_name || ""
+              }`.trim() || null,
+            email: evt.data.email_addresses?.[0]?.email_address || null,
+            image: evt.data.image_url || null,
+          },
+        })
+        console.log(`✅ User created: ${evt.data.id}`)
+      } catch (error) {
+        console.error("Error creating user:", error)
+        return new NextResponse("Error creating user", { status: 500 })
+      }
       break
 
     case "user.updated":
-      // Update user in your database when they update in Clerk
-      await prisma.user.update({
-        where: {
-          id: evt.data.id,
-        },
-        data: {
-          name: `${evt.data.first_name || ""} ${
-            evt.data.last_name || ""
-          }`.trim(),
-          email: evt.data.email_addresses?.[0]?.email_address,
-          image: evt.data.image_url,
-        },
-      })
+      try {
+        // Update user in your database when they update in Clerk
+        await prisma.user.update({
+          where: {
+            clerkId: evt.data.id, // Use clerkId field
+          },
+          data: {
+            name:
+              `${evt.data.first_name || ""} ${
+                evt.data.last_name || ""
+              }`.trim() || null,
+            email: evt.data.email_addresses?.[0]?.email_address || null,
+            image: evt.data.image_url || null,
+          },
+        })
+        console.log(`✅ User updated: ${evt.data.id}`)
+      } catch (error) {
+        console.error("Error updating user:", error)
+        return new NextResponse("Error updating user", { status: 500 })
+      }
       break
 
     case "user.deleted":
-      // Delete user from your database when they're deleted in Clerk
-      await prisma.user.delete({
-        where: {
-          id: evt.data.id,
-        },
-      })
+      try {
+        // Delete user from your database when they're deleted in Clerk
+        await prisma.user.delete({
+          where: {
+            clerkId: evt.data.id, // Use clerkId field
+          },
+        })
+        console.log(`✅ User deleted: ${evt.data.id}`)
+      } catch (error) {
+        console.error("Error deleting user:", error)
+        return new NextResponse("Error deleting user", { status: 500 })
+      }
       break
+
+    default:
+      console.log(`Unhandled webhook event type: ${eventType}`)
   }
 
   return new NextResponse("Webhook received", { status: 200 })

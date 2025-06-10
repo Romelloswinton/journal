@@ -27,7 +27,7 @@ export default function LandingPage() {
       <div
         className="h-screen w-full flex items-center justify-center"
         style={{
-          background:
+          backgroundImage:
             "radial-gradient(circle at center, #ff5bae 0%, #ef4da0 25%, #d53a88 50%, #b92877 75%, #9c1665 100%)",
           backgroundSize: "200% 200%",
           animation: "gradient 15s ease infinite",
@@ -54,15 +54,18 @@ export default function LandingPage() {
     }, 800)
   }
 
+  // Fixed light theme with pink gradient background - separated properties
+  const backgroundStyle = {
+    backgroundImage:
+      "radial-gradient(circle at center, #ff5bae 0%, #ef4da0 25%, #d53a88 50%, #b92877 75%, #9c1665 100%)",
+    backgroundSize: "200% 200%",
+    animation: "gradient 15s ease infinite",
+  }
+
   return (
     <div
       className="h-screen w-full flex items-center justify-center p-4"
-      style={{
-        background:
-          "radial-gradient(circle at center, #ff5bae 0%, #ef4da0 25%, #d53a88 50%, #b92877 75%, #9c1665 100%)",
-        backgroundSize: "200% 200%",
-        animation: "gradient 15s ease infinite",
-      }}
+      style={backgroundStyle}
     >
       {/* Main Card */}
       <motion.div
@@ -121,9 +124,9 @@ export default function LandingPage() {
                 onClick={handleBeginJourney}
                 isSubmitting={isLoading}
                 label="Begin your journey"
-                className="w-full bg-white text-pink-800 hover:bg-white/90 hover:scale-105 transition-transform font-medium"
-                variant="default"
-                size="lg"
+                className="hover:scale-105 transition-transform font-medium mt-0 bg-white text-pink-800 hover:bg-white/90"
+                disabled={false}
+                theme="light"
               />
             </motion.div>
 
@@ -135,7 +138,7 @@ export default function LandingPage() {
               transition={{ duration: 0.5, delay: 0.7 }}
             >
               <SignInButton mode="modal">
-                <button className="text-xs text-white/70 underline text-center cursor-pointer hover:text-white transition-colors">
+                <button className="text-xs text-white/70 hover:text-white underline text-center cursor-pointer transition-colors">
                   I already have an account
                 </button>
               </SignInButton>
@@ -171,6 +174,10 @@ export default function LandingPage() {
 
         .animate-appear {
           animation: appear 0.3s ease forwards;
+        }
+
+        .bg-gradient-radial {
+          background-image: radial-gradient(var(--tw-gradient-stops));
         }
       `}</style>
     </div>

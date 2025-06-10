@@ -1,3 +1,5 @@
+// app/api/happiness-ingredients/[id]/route.ts
+
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
@@ -95,27 +97,6 @@ export async function PATCH(
     // Parse request body
     const { name, category, frequency, importance, isCompleted } =
       await request.json()
-
-    // Validate values if they are provided
-    if (frequency) {
-      const validFrequencies = ["daily", "weekly", "monthly"]
-      if (!validFrequencies.includes(frequency)) {
-        return NextResponse.json(
-          { error: "Frequency must be one of: daily, weekly, monthly" },
-          { status: 400 }
-        )
-      }
-    }
-
-    if (importance) {
-      const validImportance = ["high", "medium", "low"]
-      if (!validImportance.includes(importance)) {
-        return NextResponse.json(
-          { error: "Importance must be one of: high, medium, low" },
-          { status: 400 }
-        )
-      }
-    }
 
     // Update the happiness ingredient
     const updatedIngredient = await prisma.happinessIngredient.update({

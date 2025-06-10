@@ -5,6 +5,8 @@ import { CardContent } from "@/components/ui/card"
 import ChatInput from "./ChatInput"
 import ChatMessages from "./ChatMessages"
 import WelcomeMessage from "./WelcomeMessage"
+import FollowUpPrompt from "./FollowUpPrompt"
+import QuestionHeader from "./QuestionHeader"
 
 interface RegularChatViewProps {
   currentQuery: string
@@ -13,6 +15,11 @@ interface RegularChatViewProps {
   onQueryChange: (value: string) => void
   onSubmit: (query: string) => void
   onCreateJournalEntry: () => void
+  // Follow-up props
+  showFollowUp: boolean
+  lastAIResponse: string
+  lastUserQuestion: string
+  onSuggestedQuestion: (question: string) => void
 }
 
 export default function RegularChatView({
@@ -22,8 +29,15 @@ export default function RegularChatView({
   onQueryChange,
   onSubmit,
   onCreateJournalEntry,
+  showFollowUp,
+  lastAIResponse,
+  lastUserQuestion,
+  onSuggestedQuestion,
 }: RegularChatViewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Determine if we should show the question header
+  const shouldShowQuestionHeader = currentResponse && lastUserQuestion
 
   return (
     <motion.div
@@ -39,6 +53,11 @@ export default function RegularChatView({
             {/* Welcome message with pattern & emotion questions */}
             {!currentQuery && !currentResponse && <WelcomeMessage />}
 
+            {/* Question Header - Show after AI responds */}
+            {shouldShowQuestionHeader && (
+              <QuestionHeader question={lastUserQuestion} />
+            )}
+
             {/* Conversation messages */}
             <ChatMessages
               query={currentQuery}
@@ -46,6 +65,16 @@ export default function RegularChatView({
               isGenerating={isGenerating}
               onCreateJournalEntry={onCreateJournalEntry}
             />
+
+            {/* Follow-up prompt after response */}
+            {currentResponse && !isGenerating && (
+              <FollowUpPrompt
+                onSuggestedQuestion={onSuggestedQuestion}
+                lastResponse={lastAIResponse || currentResponse}
+                lastQuestion={lastUserQuestion}
+                isVisible={showFollowUp}
+              />
+            )}
 
             {/* Reference div for auto-scrolling */}
             <div ref={messagesEndRef} />

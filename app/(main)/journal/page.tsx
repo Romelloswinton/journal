@@ -1,3 +1,4 @@
+// app/journal/page.tsx
 "use client"
 
 import { useEffect, useState } from "react"
@@ -15,7 +16,7 @@ import {
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -174,14 +175,14 @@ export default function JournalPage() {
           <div className="flex gap-3 mt-4 md:mt-0">
             <Button
               onClick={() => router.push("/journal/generate")}
-              className="bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800 text-white"
+              className="bg-purple-600 hover:bg-purple-700 text-white"
             >
               <Sparkles className="mr-2 h-4 w-4" />
               AI Generate
             </Button>
             <Button
               onClick={() => router.push("/journal/new")}
-              className="bg-gradient-to-r from-amber-500 to-orange-400 hover:from-amber-600 hover:to-orange-500 text-white dark:from-amber-600 dark:to-orange-500 dark:hover:from-amber-700 dark:hover:to-orange-600"
+              className="bg-gradient-to-r from-amber-500 to-orange-400 hover:from-amber-600 hover:to-orange-500 text-white"
             >
               <Plus className="mr-2 h-4 w-4" />
               New Entry
@@ -269,7 +270,7 @@ export default function JournalPage() {
                   variant={selectedTags.includes(tag) ? "default" : "outline"}
                   className={`cursor-pointer ${
                     selectedTags.includes(tag)
-                      ? "bg-amber-500 dark:bg-amber-600 hover:bg-amber-600 dark:hover:bg-amber-700"
+                      ? "bg-amber-500 hover:bg-amber-600"
                       : "hover:bg-accent"
                   }`}
                   onClick={() => {
@@ -311,7 +312,7 @@ export default function JournalPage() {
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-amber-500 dark:text-amber-400 mb-4" />
+            <Loader2 className="h-8 w-8 animate-spin text-amber-500 mb-4" />
             <p className="text-muted-foreground">
               Loading your journal entries...
             </p>
@@ -319,17 +320,23 @@ export default function JournalPage() {
         ) : filteredEntries.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredEntries.map((entry) => (
-              <JournalCard
+              <motion.div
                 key={entry.id}
-                entry={entry}
-                onClick={() => router.push(`/journal/${entry.id}`)}
-              />
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <JournalCard
+                  entry={entry}
+                  onClick={() => router.push(`/journal/${entry.id}`)}
+                />
+              </motion.div>
             ))}
           </div>
         ) : entries.length > 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <div className="text-center">
-              <Lightbulb className="h-8 w-8 text-amber-400 dark:text-amber-300 mx-auto mb-4" />
+              <Lightbulb className="h-8 w-8 text-amber-400 mx-auto mb-4" />
               <h2 className="text-xl font-semibold mb-2 text-foreground">
                 No matches found
               </h2>

@@ -1,3 +1,5 @@
+// app/api/happiness-ingredients/route.ts
+
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
@@ -73,24 +75,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate values
-    const validFrequencies = ["daily", "weekly", "monthly"]
-    const validImportance = ["high", "medium", "low"]
-
-    if (!validFrequencies.includes(frequency)) {
-      return NextResponse.json(
-        { error: "Frequency must be one of: daily, weekly, monthly" },
-        { status: 400 }
-      )
-    }
-
-    if (!validImportance.includes(importance)) {
-      return NextResponse.json(
-        { error: "Importance must be one of: high, medium, low" },
-        { status: 400 }
-      )
-    }
-
     // Create the happiness ingredient
     const ingredient = await prisma.happinessIngredient.create({
       data: {
@@ -98,6 +82,7 @@ export async function POST(request: NextRequest) {
         category,
         frequency,
         importance,
+        isCompleted: false, // Default to not completed
         userId: user.id,
       },
     })

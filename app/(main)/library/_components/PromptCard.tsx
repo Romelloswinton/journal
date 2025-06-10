@@ -15,7 +15,7 @@ interface PromptCardProps {
 
 export default function PromptCard({ prompt, onSave, onUse }: PromptCardProps) {
   return (
-    <Card className="h-full">
+    <Card className="h-full transition-all hover:shadow-md">
       <CardContent className="p-4 flex flex-col h-full">
         <div className="flex justify-between items-start mb-2">
           <Badge variant="outline" className="bg-opacity-50 text-xs">
@@ -30,6 +30,7 @@ export default function PromptCard({ prompt, onSave, onUse }: PromptCardProps) {
               e.stopPropagation()
               onSave()
             }}
+            title={prompt.isSaved ? "Remove from saved" : "Save prompt"}
           >
             {prompt.isSaved ? (
               <Bookmark className="h-4 w-4 fill-amber-500 dark:fill-amber-400 text-amber-500 dark:text-amber-400" />
@@ -38,9 +39,11 @@ export default function PromptCard({ prompt, onSave, onUse }: PromptCardProps) {
             )}
           </Button>
         </div>
-        <p className="text-foreground flex-grow mb-3 text-sm">
+
+        <p className="text-foreground flex-grow mb-3 text-sm leading-relaxed">
           "{prompt.text}"
         </p>
+
         <Button
           size="sm"
           className="w-full bg-gradient-to-r from-amber-500 to-orange-400 hover:from-amber-600 hover:to-orange-500 text-white dark:from-amber-600 dark:to-orange-500 dark:hover:from-amber-700 dark:hover:to-orange-600"

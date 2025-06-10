@@ -32,24 +32,24 @@ export default function JournalCard({
     e.preventDefault() // Prevent navigating to journal page
     e.stopPropagation()
 
-    saveJournal(journal)
-    toast.success("Template saved to your library")
-  }
-
-  // Determine which emoji to display
-  const getEmoji = () => {
-    // Try to access emoji property if it exists
-    if ("emoji" in journal && typeof journal.emoji === "string") {
-      return journal.emoji
+    if (isSaved) {
+      toast.info("Journal is already saved to your library")
+      return
     }
 
-    // If no emoji is available, pick based on category
-    if (journal.category === "SITUATIONAL") {
-      return "🧭" // Compass for situational
-    } else if (journal.category === "FRAMEWORKS") {
-      return "🧠" // Brain for frameworks
-    } else {
-      return "🖋️" // Pen for daily
+    saveJournal(journal)
+  }
+
+  // Determine which emoji to display based on category
+  const getEmoji = () => {
+    switch (journal.category) {
+      case "Situational":
+        return "🧭" // Compass for situational
+      case "Framework":
+        return "🧠" // Brain for frameworks
+      case "Daily":
+      default:
+        return "🖋️" // Pen for daily
     }
   }
 
@@ -57,39 +57,32 @@ export default function JournalCard({
 
   // Determine color scheme based on category
   const getCategoryColorClasses = () => {
-    if (!journal.category || journal.category === "DAILY") {
-      return {
-        border: "border-amber-200 dark:border-amber-800/50",
-        badge:
-          "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800/50",
-        bg: "bg-amber-50/50 dark:bg-amber-900/10",
-        icon: "text-amber-500 dark:text-amber-400",
-      }
-    } else if (journal.category === "SITUATIONAL") {
-      return {
-        border: "border-blue-200 dark:border-blue-800/50",
-        badge:
-          "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800/50",
-        bg: "bg-blue-50/50 dark:bg-blue-900/10",
-        icon: "text-blue-500 dark:text-blue-400",
-      }
-    } else if (journal.category === "FRAMEWORKS") {
-      return {
-        border: "border-purple-200 dark:border-purple-800/50",
-        badge:
-          "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800/50",
-        bg: "bg-purple-50/50 dark:bg-purple-900/10",
-        icon: "text-purple-500 dark:text-purple-400",
-      }
-    }
-
-    // Default amber theme
-    return {
-      border: "border-amber-200 dark:border-amber-800/50",
-      badge:
-        "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800/50",
-      bg: "bg-amber-50/50 dark:bg-amber-900/10",
-      icon: "text-amber-500 dark:text-amber-400",
+    switch (journal.category) {
+      case "Situational":
+        return {
+          border: "border-blue-200 dark:border-blue-800/50",
+          badge:
+            "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800/50",
+          bg: "bg-blue-50/50 dark:bg-blue-900/10",
+          icon: "text-blue-500 dark:text-blue-400",
+        }
+      case "Framework":
+        return {
+          border: "border-purple-200 dark:border-purple-800/50",
+          badge:
+            "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800/50",
+          bg: "bg-purple-50/50 dark:bg-purple-900/10",
+          icon: "text-purple-500 dark:text-purple-400",
+        }
+      case "Daily":
+      default:
+        return {
+          border: "border-amber-200 dark:border-amber-800/50",
+          badge:
+            "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800/50",
+          bg: "bg-amber-50/50 dark:bg-amber-900/10",
+          icon: "text-amber-500 dark:text-amber-400",
+        }
     }
   }
 
@@ -102,19 +95,21 @@ export default function JournalCard({
     >
       <Card
         className={cn(
-          `border ${colorClasses.border} shadow-sm hover:shadow-md transition-all group-hover:translate-y-[-2px] bg-card overflow-hidden h-full rounded-none`, // Removed rounded corners
+          `border ${colorClasses.border} shadow-sm hover:shadow-md transition-all group-hover:translate-y-[-2px] bg-card overflow-hidden h-full rounded-lg`,
           className
         )}
       >
         <CardContent className="p-0 flex flex-col items-center h-full">
-          {/* Card image - made larger */}
+          {/* Card image */}
           <div
             className={`w-full relative mb-3 p-5 flex items-center justify-center ${colorClasses.bg}`}
           >
             {journal.image &&
-            (journal.image.endsWith(".jpg") ||
+            journal.image.startsWith("http") &&
+            (journal.image.includes("placeholder") ||
+              journal.image.endsWith(".jpg") ||
               journal.image.endsWith(".png")) ? (
-              // Use Image component for images - made larger
+              // Use Image component for valid image URLs
               <div
                 className={`w-20 h-20 relative rounded-full overflow-hidden border ${colorClasses.border}`}
               >
@@ -123,10 +118,15 @@ export default function JournalCard({
                   alt={journal.title}
                   fill
                   className="object-cover"
+                  onError={(e) => {
+                    // Fallback to emoji if image fails to load
+                    const target = e.target as HTMLImageElement
+                    target.style.display = "none"
+                  }}
                 />
               </div>
             ) : (
-              // Fallback to placeholder image - made larger
+              // Fallback to emoji
               <div
                 className={`w-20 h-20 bg-card rounded-full flex items-center justify-center border ${colorClasses.border}`}
               >
@@ -139,10 +139,10 @@ export default function JournalCard({
               className={`absolute top-3 left-3 text-xs ${colorClasses.badge}`}
               variant="outline"
             >
-              {journal.category || "DAILY"}
+              {journal.category || "Daily"}
             </Badge>
 
-            {/* Save button (only shown when showSaveButton is true) */}
+            {/* Save button */}
             {showSaveButton && (
               <div className="absolute top-3 right-3">
                 <Button
@@ -150,7 +150,9 @@ export default function JournalCard({
                   size="sm"
                   className={`h-8 w-8 text-muted-foreground hover:${colorClasses.icon} p-0`}
                   onClick={handleSave}
-                  title={isSaved ? "Saved to library" : "Save to library"}
+                  title={
+                    isSaved ? "Already saved to library" : "Save to library"
+                  }
                 >
                   <Bookmark
                     className={cn(
@@ -163,7 +165,7 @@ export default function JournalCard({
             )}
           </div>
 
-          {/* Card content - adjusted padding for larger card */}
+          {/* Card content */}
           <div className="text-center px-4 pb-5 w-full">
             <h3 className="font-semibold text-foreground mb-1 text-base line-clamp-1">
               {journal.title}

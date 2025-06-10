@@ -1,50 +1,38 @@
-"use client"
+// components/ui/ContinueButton.tsx
 
 import { motion } from "framer-motion"
+import { Button } from "@/components/ui/button"
 
 interface ContinueButtonProps {
   onClick: () => void
-  isSubmitting?: boolean
+  isSubmitting: boolean
   label?: string
   className?: string
   disabled?: boolean
-  variant?: "default" | "primary" | "secondary" | "success" | "danger"
-  size?: "sm" | "md" | "lg"
-  showArrow?: boolean
+  theme?: string // Add theme prop
 }
 
 export function ContinueButton({
   onClick,
-  isSubmitting = false,
+  isSubmitting,
   label = "Continue",
   className = "",
   disabled = false,
-  variant = "default",
-  size = "md",
-  showArrow = true,
+  theme = "light",
 }: ContinueButtonProps) {
-  // Variant styles mapping
-  const variantStyles = {
-    default: "bg-blue-600 hover:bg-blue-700 text-white",
-    primary: "bg-blue-600 hover:bg-blue-700 text-white",
-    secondary: "bg-gray-500 hover:bg-gray-600 text-white",
-    success: "bg-green-600 hover:bg-green-700 text-white",
-    danger: "bg-red-600 hover:bg-red-700 text-white",
-  }
+  // Dark mode & light mode class adjustments
+  const baseClasses = "w-full relative overflow-hidden"
 
-  // Size styles mapping
-  const sizeStyles = {
-    sm: "py-1 px-3 text-sm",
-    md: "py-2 px-4 text-base",
-    lg: "py-3 px-6 text-lg",
+  let bgClasses = ""
+  if (theme === "dark") {
+    bgClasses = disabled
+      ? "bg-gray-600 hover:bg-gray-600 text-gray-400"
+      : "bg-blue-600 hover:bg-blue-700 text-white"
+  } else {
+    bgClasses = disabled
+      ? "bg-gray-300 hover:bg-gray-300 text-gray-500"
+      : "bg-blue-600 hover:bg-blue-700 text-white"
   }
-
-  // Combine all styles
-  const buttonStyles = `w-full relative overflow-hidden rounded-lg transition 
-    ${variantStyles[variant]} 
-    ${sizeStyles[size]} 
-    ${disabled || isSubmitting ? "opacity-70 cursor-not-allowed" : ""} 
-    ${className}`
 
   return (
     <motion.div
@@ -53,11 +41,10 @@ export function ContinueButton({
       transition={{ duration: 0.3 }}
       className="mt-6"
     >
-      <button
-        className={buttonStyles}
+      <Button
+        className={`${baseClasses} ${bgClasses} ${className}`}
         onClick={onClick}
         disabled={disabled || isSubmitting}
-        type="button"
       >
         <span
           className={`flex items-center justify-center transition-transform duration-300 ${
@@ -65,15 +52,13 @@ export function ContinueButton({
           }`}
         >
           {label}
-          {showArrow && (
-            <motion.span
-              animate={{ x: [0, 5, 0] }}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-              className="ml-2"
-            >
-              →
-            </motion.span>
-          )}
+          <motion.span
+            animate={{ x: [0, 5, 0] }}
+            transition={{ repeat: Infinity, duration: 1.5 }}
+            className="ml-2"
+          >
+            →
+          </motion.span>
         </span>
 
         {isSubmitting && (
@@ -100,7 +85,7 @@ export function ContinueButton({
             </svg>
           </span>
         )}
-      </button>
+      </Button>
     </motion.div>
   )
 }

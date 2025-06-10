@@ -8,9 +8,14 @@ import { motion, AnimatePresence } from "framer-motion"
 interface SignUpModalProps {
   isOpen: boolean
   onComplete?: () => void
+  routing?: "hash" | "virtual"
 }
 
-export function SignUpModal({ isOpen, onComplete }: SignUpModalProps) {
+export function SignUpModal({
+  isOpen,
+  onComplete,
+  routing = "hash",
+}: SignUpModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -26,6 +31,7 @@ export function SignUpModal({ isOpen, onComplete }: SignUpModalProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={onComplete} // Allow clicking backdrop to close
           />
 
           {/* Modal Content */}
@@ -53,6 +59,7 @@ export function SignUpModal({ isOpen, onComplete }: SignUpModalProps) {
                 </p>
 
                 <SignUp
+                  routing={routing} // Add routing prop to fix Clerk routing issues
                   appearance={{
                     elements: {
                       formButtonPrimary:

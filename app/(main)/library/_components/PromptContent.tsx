@@ -5,9 +5,9 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { MessageSquare, Plus, Bookmark, ArrowRight } from "lucide-react"
+import { MessageSquare, ArrowRight, Trash2 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Prompt, SavedPrompt, useLibraryStore } from "@/app/store/libraryStore"
+import { SavedPrompt, useLibraryStore } from "@/app/store/libraryStore"
 import EmptyState from "./EmptyState"
 import PromptCard from "./PromptCard"
 
@@ -23,6 +23,8 @@ const CATEGORIES = [
   "Problem-solving",
   "Healing",
   "Planning",
+  "Values",
+  "Self-Care",
 ]
 
 export default function PromptContent() {
@@ -58,6 +60,25 @@ export default function PromptContent() {
     )}`
   }
 
+  // Format date relative to now
+  const formatLastUsed = (lastUsed: string) => {
+    try {
+      const date = new Date(lastUsed)
+      const now = new Date()
+      const diffInMs = now.getTime() - date.getTime()
+      const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
+
+      if (diffInDays === 0) return "Today"
+      if (diffInDays === 1) return "Yesterday"
+      if (diffInDays < 7) return `${diffInDays} days ago`
+      if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`
+      if (diffInDays < 365) return `${Math.floor(diffInDays / 30)} months ago`
+      return `${Math.floor(diffInDays / 365)} years ago`
+    } catch {
+      return "Recently"
+    }
+  }
+
   return (
     <div className="mt-6">
       <Tabs
@@ -79,9 +100,9 @@ export default function PromptContent() {
               <Badge
                 key={category}
                 variant={selectedCategory === category ? "default" : "outline"}
-                className={`cursor-pointer ${
+                className={`cursor-pointer transition-colors ${
                   selectedCategory === category
-                    ? "bg-amber-500 dark:bg-amber-600 hover:bg-amber-600 dark:hover:bg-amber-700"
+                    ? "bg-amber-500 dark:bg-amber-600 hover:bg-amber-600 dark:hover:bg-amber-700 text-white"
                     : "hover:bg-accent"
                 }`}
                 onClick={() => setSelectedCategory(category)}
@@ -111,7 +132,7 @@ export default function PromptContent() {
           {/* Empty state when no prompts match filter */}
           {!isLoading && filteredPrompts.length === 0 && (
             <div className="text-center py-12">
-              <MessageSquare className="h-12 w-12 text-muted mx-auto mb-4" />
+              <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium text-foreground mb-2">
                 No prompts found
               </h3>
@@ -138,6 +159,7 @@ export default function PromptContent() {
                   prompt={prompt}
                   onRemove={() => removeSavedPrompt(prompt.id)}
                   onUse={() => usePrompt(prompt.text)}
+                  formatLastUsed={formatLastUsed}
                 />
               ))}
             </div>
@@ -162,15 +184,17 @@ interface SavedPromptCardProps {
   prompt: SavedPrompt
   onRemove: () => void
   onUse: () => void
+  formatLastUsed: (date: string) => string
 }
 
 export function SavedPromptCard({
   prompt,
   onRemove,
   onUse,
+  formatLastUsed,
 }: SavedPromptCardProps) {
   return (
-    <Card className="h-full">
+    <Card className="h-full hover:shadow-md transition-all">
       <CardContent className="p-6 flex flex-col h-full">
         <div className="flex justify-between items-start mb-2">
           <Badge variant="outline" className="bg-opacity-50">
@@ -184,15 +208,18 @@ export function SavedPromptCard({
               e.preventDefault()
               onRemove()
             }}
+            title="Remove from saved"
           >
-            <MessageSquare className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
 
-        <p className="text-foreground flex-grow mb-2">"{prompt.text}"</p>
+        <p className="text-foreground flex-grow mb-2 leading-relaxed">
+          "{prompt.text}"
+        </p>
 
         <p className="text-xs text-muted-foreground mb-4">
-          Last used: {prompt.lastUsed}
+          Last used: {formatLastUsed(prompt.lastUsed)}
         </p>
 
         <Button
@@ -218,11 +245,11 @@ function PromptLoadingSkeleton() {
         <Card key={index} className="h-full">
           <CardContent className="p-6">
             <div className="flex justify-between items-start mb-6">
-              <div className="w-24 h-6 bg-muted rounded-full"></div>
-              <div className="w-8 h-8 bg-muted rounded-full"></div>
+              <div className="w-24 h-6 bg-muted rounded-full animate-pulse"></div>
+              <div className="w-8 h-8 bg-muted rounded-full animate-pulse"></div>
             </div>
-            <div className="w-full h-20 bg-muted rounded-md mb-6"></div>
-            <div className="w-full h-10 bg-muted rounded-md"></div>
+            <div className="w-full h-20 bg-muted rounded-md mb-6 animate-pulse"></div>
+            <div className="w-full h-10 bg-muted rounded-md animate-pulse"></div>
           </CardContent>
         </Card>
       ))}

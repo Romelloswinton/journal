@@ -10,6 +10,42 @@ interface ConversationMessage {
   content: string
 }
 
+/**
+ * Check and remove duplicated content from text
+ */
+function removeDuplicatedContent(text: string): string {
+  // If the content is very long, check for exact duplication
+  if (text.length > 500) {
+    // Split the text in half and compare
+    const halfLength = Math.floor(text.length / 2)
+    const firstHalf = text.substring(0, halfLength)
+    const secondHalf = text.substring(halfLength)
+
+    // If the first half appears in the second half, remove the duplication
+    if (secondHalf.includes(firstHalf)) {
+      return firstHalf
+    }
+
+    // Check if the content is repeated (first paragraph == second paragraph)
+    const paragraphs = text.split("\n\n")
+    if (paragraphs.length > 1) {
+      const firstParagraph = paragraphs[0]
+
+      // Check if any other paragraph is identical to the first one
+      for (let i = 1; i < paragraphs.length; i++) {
+        if (paragraphs[i] === firstParagraph) {
+          // Found a duplicate paragraph
+          // Remove all duplicates and keep unique paragraphs
+          const uniqueParagraphs = [...new Set(paragraphs)]
+          return uniqueParagraphs.join("\n\n")
+        }
+      }
+    }
+  }
+
+  return text
+}
+
 // Fallback responses in case the API is unavailable
 const FALLBACK_RESPONSES = [
   "Based on your journal entries, I notice you've been reflecting deeply on your experiences. This kind of self-awareness is valuable for personal growth.\n\nI've observed patterns of thoughtfulness in your writing. Continue exploring these reflections as they help build understanding.\n\nConsider journaling about specific moments that made you feel strongly, as these can provide valuable insights about your values and priorities.",
@@ -78,7 +114,8 @@ function getMoodFromEntry(entry: any): number {
  */
 function getRandomFallbackResponse(): string {
   const index = Math.floor(Math.random() * FALLBACK_RESPONSES.length)
-  return FALLBACK_RESPONSES[index]
+  const response = FALLBACK_RESPONSES[index]
+  return removeDuplicatedContent(response)
 }
 
 export async function POST(req: Request) {
@@ -296,13 +333,18 @@ Identify patterns, suggest reflections, or offer gentle guidance as appropriate.
 Keep your response supportive, non-judgmental, and focused on self-discovery.
 Your goal is to help the user gain deeper insights about themselves through your response.
 If you don't have enough information from their entries, you can acknowledge that and ask thoughtful follow-up questions.
-Limit your response to 3-4 paragraphs.`
+Limit your response to 3-4 paragraphs.
+
+IMPORTANT: Your response must NOT contain any duplicated content. Each paragraph must contain unique information.`
 
     try {
       // Generate content with Gemini
       const result = await model.generateContent(promptText)
       const response = await result.response
-      const text = response.text().trim()
+      let text = response.text().trim()
+
+      // Remove duplicated content
+      text = removeDuplicatedContent(text)
 
       // If continuing a conversation, update the existing one
       if (continueConversation && conversationId) {

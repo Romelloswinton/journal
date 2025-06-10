@@ -1,3 +1,4 @@
+// app/api/journal/route.ts
 import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { db } from "@/lib/db"
@@ -11,13 +12,30 @@ export async function GET() {
       return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    // Find the user in our database using Clerk ID
-    const user = await db.user.findUnique({
+    // Find or create the user in our database using Clerk ID
+    let user = await db.user.findUnique({
       where: { clerkId: clerkUserId },
     })
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      // Auto-create user if they don't exist
+      try {
+        user = await db.user.create({
+          data: {
+            clerkId: clerkUserId,
+            // Add other required fields based on your User model
+            // email: "", // Add if required by your schema
+            // name: "", // Add if required by your schema
+          },
+        })
+        console.log(`Auto-created user profile for ${clerkUserId}`)
+      } catch (createError) {
+        console.error("Failed to auto-create user:", createError)
+        return NextResponse.json(
+          { error: "Failed to create user profile" },
+          { status: 500 }
+        )
+      }
     }
 
     // Support for old journal entries (could be expanded for migration later)
@@ -50,6 +68,7 @@ export async function GET() {
           clarity: 5,
         },
         insights: [], // No insights in old entries
+        isAIGenerated: false, // Old entries weren't AI generated
         createdAt: entry.createdAt.toISOString(),
         updatedAt: entry.updatedAt.toISOString(),
       }
@@ -99,13 +118,30 @@ export async function POST(req: Request) {
       return new NextResponse("Title and content are required", { status: 400 })
     }
 
-    // Find the user in our database using Clerk ID
-    const user = await db.user.findUnique({
+    // Find or create the user in our database using Clerk ID
+    let user = await db.user.findUnique({
       where: { clerkId: clerkUserId },
     })
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      // Auto-create user if they don't exist
+      try {
+        user = await db.user.create({
+          data: {
+            clerkId: clerkUserId,
+            // Add other required fields based on your User model
+            // email: "", // Add if required by your schema
+            // name: "", // Add if required by your schema
+          },
+        })
+        console.log(`Auto-created user profile for ${clerkUserId}`)
+      } catch (createError) {
+        console.error("Failed to auto-create user:", createError)
+        return NextResponse.json(
+          { error: "Failed to create user profile" },
+          { status: 500 }
+        )
+      }
     }
 
     // Create a new journal entry
@@ -113,9 +149,9 @@ export async function POST(req: Request) {
       data: {
         title,
         content,
-        tags,
-        metrics,
-        insights,
+        tags: tags || [],
+        metrics: metrics || { mood: 5, energy: 5, clarity: 5 },
+        insights: insights || [],
         isAIGenerated,
         userId: user.id,
       },

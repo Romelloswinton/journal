@@ -63,6 +63,42 @@ interface RosebudState {
   ) => Promise<boolean>
 }
 
+/**
+ * Check and remove duplicated content from text
+ */
+function removeDuplicatedContent(text: string): string {
+  // If the content is very long, check for exact duplication
+  if (text.length > 500) {
+    // Split the text in half and compare
+    const halfLength = Math.floor(text.length / 2)
+    const firstHalf = text.substring(0, halfLength)
+    const secondHalf = text.substring(halfLength)
+
+    // If the first half appears in the second half, remove the duplication
+    if (secondHalf.includes(firstHalf)) {
+      return firstHalf
+    }
+
+    // Check if the content is repeated (first paragraph == second paragraph)
+    const paragraphs = text.split("\n\n")
+    if (paragraphs.length > 1) {
+      const firstParagraph = paragraphs[0]
+
+      // Check if any other paragraph is identical to the first one
+      for (let i = 1; i < paragraphs.length; i++) {
+        if (paragraphs[i] === firstParagraph) {
+          // Found a duplicate paragraph
+          // Remove all duplicates and keep unique paragraphs
+          const uniqueParagraphs = [...new Set(paragraphs)]
+          return uniqueParagraphs.join("\n\n")
+        }
+      }
+    }
+  }
+
+  return text
+}
+
 // For development debugging
 const DEV_MODE = process.env.NODE_ENV === "development"
 const API_FALLBACK = false // Set to true to use fallback responses during development
@@ -157,13 +193,30 @@ const useRosebudStore = create<RosebudState>()(
           // Simulate API delay
           await new Promise((resolve) => setTimeout(resolve, 1000))
 
-          // Create a mock response
-          const mockResponse =
+          // Create a mock response with deduplication
+          const mockResponse = removeDuplicatedContent(
             "This is a fallback response. The API server appears to be unavailable, so I'm providing this simulated response instead."
+          )
 
           if (continueConversation && loadedConversation) {
             // Update state as if we got a real response
             set((state) => {
+              // Check if the message is already the last one to avoid duplication
+              const lastMessage =
+                state.activeConversationMessages[
+                  state.activeConversationMessages.length - 1
+                ]
+              if (
+                lastMessage &&
+                lastMessage.role === "assistant" &&
+                lastMessage.content === mockResponse
+              ) {
+                // Message already exists, don't add it again
+                return {
+                  isGenerating: false,
+                }
+              }
+
               const newMessages: ConversationMessage[] = [
                 ...state.activeConversationMessages,
                 { role: "assistant" as const, content: mockResponse },
@@ -277,10 +330,29 @@ const useRosebudStore = create<RosebudState>()(
 
             if (continueConversation && loadedConversation) {
               // Get the assistant's response from either latestResponse or response
-              const responseText = data.latestResponse || data.response
+              let responseText = data.latestResponse || data.response
+
+              // Make sure there are no duplicated content
+              responseText = removeDuplicatedContent(responseText)
 
               // Add the assistant's response to active conversation messages
               set((state) => {
+                // Check if the response is already the last message
+                const lastMessage =
+                  state.activeConversationMessages[
+                    state.activeConversationMessages.length - 1
+                  ]
+                if (
+                  lastMessage &&
+                  lastMessage.role === "assistant" &&
+                  lastMessage.content === responseText
+                ) {
+                  // This message already exists, don't add it again
+                  return {
+                    isGenerating: false,
+                  }
+                }
+
                 const newMessages: ConversationMessage[] = [
                   ...state.activeConversationMessages,
                   { role: "assistant" as const, content: responseText },
@@ -321,17 +393,26 @@ const useRosebudStore = create<RosebudState>()(
 
               return responseText
             } else {
+              // Process the response to remove any duplication
+              const response = removeDuplicatedContent(data.response)
+
               // Update state with the new conversation
               set((state) => ({
-                conversations: [data, ...state.conversations],
+                conversations: [
+                  {
+                    ...data,
+                    response, // Use the deduped response
+                  },
+                  ...state.conversations,
+                ],
                 currentQuery: "",
-                currentResponse: data.response,
+                currentResponse: response,
                 isGenerating: false,
                 loadedConversation: null, // Clear any loaded conversation when getting a new response
                 activeConversationMessages: [], // Clear active conversation messages
               }))
 
-              return data.response
+              return response
             }
           } catch (fetchError) {
             console.error("API connection error:", fetchError)
@@ -388,7 +469,21 @@ const useRosebudStore = create<RosebudState>()(
           }
 
           const data = await response.json()
-          set({ conversations: data })
+
+          // Ensure no duplicated content in existing conversations
+          const processedData = data.map(
+            (conversation: RosebudConversation) => {
+              if (conversation.response) {
+                return {
+                  ...conversation,
+                  response: removeDuplicatedContent(conversation.response),
+                }
+              }
+              return conversation
+            }
+          )
+
+          set({ conversations: processedData })
         } catch (error) {
           console.error("Failed to fetch conversations:", error)
           set({ error: "Failed to load past conversations." })
@@ -572,18 +667,36 @@ const useRosebudStore = create<RosebudState>()(
 
       // Load conversation into chat
       loadConversation: (conversation: RosebudConversation) => {
-        // Initialize active conversation messages from the conversation
-        const initialMessages: ConversationMessage[] =
-          conversation.messages || [
-            { role: "user" as const, content: conversation.query },
-            { role: "assistant" as const, content: conversation.response },
+        // Check for and fix duplicated content in the conversation
+        const processedResponse = removeDuplicatedContent(conversation.response)
+        const cleanedConversation = {
+          ...conversation,
+          response: processedResponse,
+        }
+
+        // Process messages to remove duplicated content if needed
+        let processedMessages: ConversationMessage[] =
+          cleanedConversation.messages || [
+            { role: "user" as const, content: cleanedConversation.query },
+            { role: "assistant" as const, content: processedResponse },
           ]
 
+        // Clean up any assistant messages that might have duplicated content
+        processedMessages = processedMessages.map((msg) => {
+          if (msg.role === "assistant") {
+            return { ...msg, content: removeDuplicatedContent(msg.content) }
+          }
+          return msg
+        })
+
         set({
-          loadedConversation: conversation,
+          loadedConversation: {
+            ...cleanedConversation,
+            messages: processedMessages,
+          },
           currentQuery: "", // Clear current query
           currentResponse: null, // Clear current response
-          activeConversationMessages: initialMessages,
+          activeConversationMessages: processedMessages,
         })
       },
 

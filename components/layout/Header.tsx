@@ -25,8 +25,8 @@ export default function Header() {
 
   const tabs = [
     { name: "Today", path: "/dashboard", id: "today" },
-    { name: "Explore", path: "/explore", id: "explore" },
-    { name: "Entries", path: "/entries", id: "entries" },
+    { name: "Explore", path: "/library", id: "explore" }, // Changed from /explore to /library
+    { name: "Entries", path: "/journal", id: "entries" }, // Changed from /entries to /journal
   ]
 
   return (

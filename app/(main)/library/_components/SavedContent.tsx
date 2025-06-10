@@ -37,6 +37,25 @@ export default function SavedContent() {
     )}`
   }
 
+  // Format date relative to now
+  const formatLastUsed = (lastUsed: string) => {
+    try {
+      const date = new Date(lastUsed)
+      const now = new Date()
+      const diffInMs = now.getTime() - date.getTime()
+      const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
+
+      if (diffInDays === 0) return "Today"
+      if (diffInDays === 1) return "Yesterday"
+      if (diffInDays < 7) return `${diffInDays} days ago`
+      if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`
+      if (diffInDays < 365) return `${Math.floor(diffInDays / 30)} months ago`
+      return `${Math.floor(diffInDays / 365)} years ago`
+    } catch {
+      return "Recently"
+    }
+  }
+
   return (
     <div className="mt-6">
       <Tabs
@@ -61,6 +80,7 @@ export default function SavedContent() {
                   key={journal.id}
                   journal={journal}
                   onRemove={() => removeSavedJournal(journal.id)}
+                  formatLastUsed={formatLastUsed}
                 />
               ))}
             </div>
@@ -79,12 +99,12 @@ export default function SavedContent() {
           {savedPrompts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {savedPrompts.map((prompt) => (
-                // app/library/_components/SavedContent.tsx (continued)
                 <SavedPromptCard
                   key={prompt.id}
                   prompt={prompt}
                   onRemove={() => removeSavedPrompt(prompt.id)}
                   onUse={() => usePrompt(prompt.text)}
+                  formatLastUsed={formatLastUsed}
                 />
               ))}
             </div>
@@ -103,7 +123,7 @@ export default function SavedContent() {
   )
 }
 
-// Saved Journal Card
+// Saved Journal Card Component
 interface SavedJournalCardProps {
   journal: {
     id: string
@@ -111,23 +131,53 @@ interface SavedJournalCardProps {
     author: string
     image: string
     lastUsed: string
+    category?: string
   }
   onRemove: () => void
+  formatLastUsed: (date: string) => string
 }
 
-function SavedJournalCard({ journal, onRemove }: SavedJournalCardProps) {
+function SavedJournalCard({
+  journal,
+  onRemove,
+  formatLastUsed,
+}: SavedJournalCardProps) {
+  // Get emoji based on category
+  const getEmoji = () => {
+    switch (journal.category) {
+      case "Situational":
+        return "🧭"
+      case "Framework":
+        return "🧠"
+      case "Daily":
+      default:
+        return "🖋️"
+    }
+  }
+
   return (
-    <Card className="h-full">
+    <Card className="h-full hover:shadow-md transition-all">
       <CardContent className="p-6 flex flex-col h-full">
         <div className="flex justify-between items-start mb-4">
-          <div className="w-16 h-16 relative rounded-full overflow-hidden bg-muted">
-            {journal.image && (
+          <div className="w-16 h-16 relative rounded-full overflow-hidden bg-muted flex items-center justify-center">
+            {journal.image &&
+            journal.image.startsWith("http") &&
+            (journal.image.includes("placeholder") ||
+              journal.image.endsWith(".jpg") ||
+              journal.image.endsWith(".png")) ? (
               <Image
                 src={journal.image}
                 alt={journal.title}
                 fill
                 className="object-cover"
+                onError={(e) => {
+                  // Hide image and show emoji fallback
+                  const target = e.target as HTMLImageElement
+                  target.style.display = "none"
+                }}
               />
+            ) : (
+              <span className="text-xl">{getEmoji()}</span>
             )}
           </div>
           <Button
@@ -138,6 +188,7 @@ function SavedJournalCard({ journal, onRemove }: SavedJournalCardProps) {
               e.preventDefault()
               onRemove()
             }}
+            title="Remove from saved"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -146,11 +197,11 @@ function SavedJournalCard({ journal, onRemove }: SavedJournalCardProps) {
         <h3 className="font-semibold text-foreground mb-1">{journal.title}</h3>
         <p className="text-sm text-muted-foreground mb-1">{journal.author}</p>
         <p className="text-xs text-muted-foreground mb-4">
-          Last used: {journal.lastUsed}
+          Last used: {formatLastUsed(journal.lastUsed)}
         </p>
 
         <div className="mt-auto">
-          <Link href={`/journal/new?template=${journal.id}`}>
+          <Link href={`/journal/template/${journal.id}`}>
             <Button className="w-full bg-gradient-to-r from-amber-500 to-orange-400 hover:from-amber-600 hover:to-orange-500 text-white dark:from-amber-600 dark:to-orange-500 dark:hover:from-amber-700 dark:hover:to-orange-600">
               Start journaling
               <ArrowRight className="h-4 w-4 ml-2" />
@@ -162,7 +213,7 @@ function SavedJournalCard({ journal, onRemove }: SavedJournalCardProps) {
   )
 }
 
-// Saved Prompt Card
+// Saved Prompt Card Component
 interface SavedPromptCardProps {
   prompt: {
     id: string
@@ -172,11 +223,17 @@ interface SavedPromptCardProps {
   }
   onRemove: () => void
   onUse: () => void
+  formatLastUsed: (date: string) => string
 }
 
-function SavedPromptCard({ prompt, onRemove, onUse }: SavedPromptCardProps) {
+function SavedPromptCard({
+  prompt,
+  onRemove,
+  onUse,
+  formatLastUsed,
+}: SavedPromptCardProps) {
   return (
-    <Card className="h-full">
+    <Card className="h-full hover:shadow-md transition-all">
       <CardContent className="p-6 flex flex-col h-full">
         <div className="flex justify-between items-start mb-2">
           <Badge variant="outline" className="bg-opacity-50">
@@ -190,15 +247,18 @@ function SavedPromptCard({ prompt, onRemove, onUse }: SavedPromptCardProps) {
               e.preventDefault()
               onRemove()
             }}
+            title="Remove from saved"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
 
-        <p className="text-foreground flex-grow mb-2">"{prompt.text}"</p>
+        <p className="text-foreground flex-grow mb-2 leading-relaxed">
+          "{prompt.text}"
+        </p>
 
         <p className="text-xs text-muted-foreground mb-4">
-          Last used: {prompt.lastUsed}
+          Last used: {formatLastUsed(prompt.lastUsed)}
         </p>
 
         <Button

@@ -51,55 +51,63 @@ export default function JournalCategory({
     }
   }
 
+  // Don't render if no journals
+  if (!journals || journals.length === 0) {
+    return null
+  }
+
   return (
     <div className="mb-6 max-w-6xl mx-auto relative px-10">
-      {" "}
-      {/* Added padding for arrow space */}
       {/* Category header with title centered */}
       <div className="flex justify-center items-center mb-3">
         <h3 className="text-xs font-medium text-muted-foreground tracking-wider">
           {title}
         </h3>
       </div>
-      {/* Scroll container with cards - exact width calculation for 4 cards */}
+
+      {/* Scroll container with cards */}
       <div className="relative">
-        {/* Navigation buttons - positioned correctly */}
-        <div className="absolute -left-3 top-1/2 transform -translate-y-1/2 z-10">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm rounded-full shadow-md"
-            onClick={scrollLeft}
-            disabled={!canScrollLeft}
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-        </div>
+        {/* Navigation buttons - only show if there are enough journals to scroll */}
+        {journals.length > 4 && (
+          <>
+            <div className="absolute -left-3 top-1/2 transform -translate-y-1/2 z-10">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm rounded-full shadow-md"
+                onClick={scrollLeft}
+                disabled={!canScrollLeft}
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+            </div>
 
-        <div className="absolute -right-3 top-1/2 transform -translate-y-1/2 z-10">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm rounded-full shadow-md"
-            onClick={scrollRight}
-            disabled={!canScrollRight}
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        </div>
+            <div className="absolute -right-3 top-1/2 transform -translate-y-1/2 z-10">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm rounded-full shadow-md"
+                onClick={scrollRight}
+                disabled={!canScrollRight}
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </div>
+          </>
+        )}
 
-        {/* Scrollable grid container with calculated widths */}
+        {/* Scrollable grid container */}
         <div
           ref={scrollContainerRef}
           className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar"
           onScroll={checkScrollButtons}
         >
-          {journals.map((journal) => (
+          {journals.map((journal, index) => (
             <motion.div
               key={journal.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.3, delay: index * 0.1 }}
               className="min-w-[calc(25%-12px)] w-[calc(25%-12px)]" // Exact calculation for 4 cards with gap
             >
               <JournalCard
@@ -111,6 +119,7 @@ export default function JournalCategory({
           ))}
         </div>
       </div>
+
       <style jsx>{`
         .hide-scrollbar::-webkit-scrollbar {
           display: none;

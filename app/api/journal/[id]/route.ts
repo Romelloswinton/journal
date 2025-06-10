@@ -1,3 +1,4 @@
+// app/api/journal/[id]/route.ts
 import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { db } from "@/lib/db"
@@ -19,13 +20,30 @@ export async function GET(
       return new NextResponse("Journal ID is required", { status: 400 })
     }
 
-    // Find the user in our database using Clerk ID
-    const user = await db.user.findUnique({
+    // Find or create the user in our database using Clerk ID
+    let user = await db.user.findUnique({
       where: { clerkId: clerkUserId },
     })
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      // Auto-create user if they don't exist
+      try {
+        user = await db.user.create({
+          data: {
+            clerkId: clerkUserId,
+            // Add other required fields based on your User model
+            // email: "", // Add if required by your schema
+            // name: "", // Add if required by your schema
+          },
+        })
+        console.log(`Auto-created user profile for ${clerkUserId}`)
+      } catch (createError) {
+        console.error("Failed to auto-create user:", createError)
+        return NextResponse.json(
+          { error: "Failed to create user profile" },
+          { status: 500 }
+        )
+      }
     }
 
     // Try to find in new format first
@@ -71,6 +89,7 @@ export async function GET(
         clarity: 5,
       },
       insights: [], // No insights in old entries
+      isAIGenerated: false, // Old entries weren't AI generated
       createdAt: oldFormatEntry.createdAt.toISOString(),
       updatedAt: oldFormatEntry.updatedAt.toISOString(),
     }
@@ -99,20 +118,37 @@ export async function PATCH(
       return new NextResponse("Journal ID is required", { status: 400 })
     }
 
-    const body = await request.json() // Fixed: Changed req to request
+    const body = await request.json()
     const { title, content, tags, metrics, insights } = body
 
     if (!title && !content && !tags && !metrics && !insights) {
       return new NextResponse("No fields to update provided", { status: 400 })
     }
 
-    // Find the user in our database using Clerk ID
-    const user = await db.user.findUnique({
+    // Find or create the user in our database using Clerk ID
+    let user = await db.user.findUnique({
       where: { clerkId: clerkUserId },
     })
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      // Auto-create user if they don't exist
+      try {
+        user = await db.user.create({
+          data: {
+            clerkId: clerkUserId,
+            // Add other required fields based on your User model
+            // email: "", // Add if required by your schema
+            // name: "", // Add if required by your schema
+          },
+        })
+        console.log(`Auto-created user profile for ${clerkUserId}`)
+      } catch (createError) {
+        console.error("Failed to auto-create user:", createError)
+        return NextResponse.json(
+          { error: "Failed to create user profile" },
+          { status: 500 }
+        )
+      }
     }
 
     // Check if this is a new format entry first
@@ -203,13 +239,30 @@ export async function DELETE(
       return new NextResponse("Journal ID is required", { status: 400 })
     }
 
-    // Find the user in our database using Clerk ID
-    const user = await db.user.findUnique({
+    // Find or create the user in our database using Clerk ID
+    let user = await db.user.findUnique({
       where: { clerkId: clerkUserId },
     })
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      // Auto-create user if they don't exist
+      try {
+        user = await db.user.create({
+          data: {
+            clerkId: clerkUserId,
+            // Add other required fields based on your User model
+            // email: "", // Add if required by your schema
+            // name: "", // Add if required by your schema
+          },
+        })
+        console.log(`Auto-created user profile for ${clerkUserId}`)
+      } catch (createError) {
+        console.error("Failed to auto-create user:", createError)
+        return NextResponse.json(
+          { error: "Failed to create user profile" },
+          { status: 500 }
+        )
+      }
     }
 
     // Try to delete from new format first

@@ -117,9 +117,10 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Sign Up Modal */}
+      {/* Sign Up Modal with hash-based routing */}
       <SignUpModal
         isOpen={showAuthModal}
+        routing="hash" // Add this prop to fix the routing issue
         onComplete={() => {
           setShowAuthModal(false)
         }}
@@ -208,7 +209,47 @@ export default function DashboardPage() {
 
             {/* Second card: Recent Entries or Discover Journals */}
             {journalEntries.length > 0 ? (
-              <RecentEntries entries={journalEntries} />
+              <Card className="bg-card border-border shadow-sm">
+                <CardContent className="p-4 flex flex-col h-full justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="text-lg font-semibold text-card-foreground">
+                        Recent Entries
+                      </h4>
+                      <BookOpen className="h-4 w-4 text-blue-500" />
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Your latest journal entries
+                    </p>
+
+                    {/* Show latest entries */}
+                    <div className="space-y-2 mb-4">
+                      {journalEntries.slice(0, 2).map((entry) => (
+                        <div
+                          key={entry.id}
+                          className="p-2 bg-muted/50 rounded-md"
+                        >
+                          <p className="text-sm font-medium text-card-foreground truncate">
+                            {entry.title || "Untitled Entry"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(entry.createdAt), "MMM d, yyyy")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Link href="/journal" className="block mt-2">
+                    <Button
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white text-sm"
+                      size="sm"
+                    >
+                      View All Entries
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
             ) : (
               <Card className="bg-card border-border shadow-sm">
                 <CardContent className="p-4 flex flex-col h-full justify-between">
@@ -224,7 +265,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
 
-                  <Link href="/journal/new" className="block mt-2">
+                  <Link href="/library" className="block mt-2">
                     <Button
                       className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-sm"
                       size="sm"

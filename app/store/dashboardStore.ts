@@ -1,3 +1,5 @@
+// app/store/dashboardStore.ts
+
 import { create } from "zustand"
 import { JournalEntry } from "@/app/store/journalStore"
 import { statsService, UserStats } from "@/services/statsService"
@@ -15,7 +17,7 @@ interface DashboardState {
   fetchDashboardData: (isSignedIn: boolean) => Promise<void>
   fetchUserStats: () => Promise<void>
   calculateStats: (entries: JournalEntry[]) => void
-  performDailyCheckIn: () => Promise<JournalEntry>
+  performDailyCheckIn: () => Promise<JournalEntry | null>
   setShowAuthModal: (show: boolean) => void
 }
 
@@ -36,18 +38,50 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
   // Fetch dashboard data - summary info and journal highlights
   fetchDashboardData: async (isSignedIn: boolean) => {
-    // If not signed in, we can skip fetching user-specific data
-    if (!isSignedIn) return
+    // If not signed in, reset to default state
+    if (!isSignedIn) {
+      set({
+        userStats: {
+          currentStreak: 0,
+          longestStreak: 0,
+          totalEntries: 0,
+          wordCount: 0,
+          hasTodayEntry: false,
+        },
+        error: null,
+      })
+      return
+    }
 
     set({ isLoading: true, error: null })
 
     try {
       // Fetch all journal entries to calculate stats
       const entries = await journalService.getEntries()
+
+      // Calculate stats even if entries is empty array
       get().calculateStats(entries)
+
+      // Clear any previous errors
+      set({ error: null })
     } catch (err) {
-      set({ error: "Failed to load dashboard data" })
       console.error("Error fetching dashboard data:", err)
+
+      // Set a user-friendly error message
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load dashboard data"
+      set({ error: errorMessage })
+
+      // Set default stats to prevent undefined values
+      set({
+        userStats: {
+          currentStreak: 0,
+          longestStreak: 0,
+          totalEntries: 0,
+          wordCount: 0,
+          hasTodayEntry: false,
+        },
+      })
     } finally {
       set({ isLoading: false })
     }
@@ -55,15 +89,28 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
 
   // Calculate user stats based on journal entries
   calculateStats: (entries: JournalEntry[]) => {
-    const calculatedStats = statsService.calculateStats(entries)
-    set({ userStats: calculatedStats })
-
-    // Optionally save stats to the server
     try {
-      statsService.submitStats(calculatedStats)
+      const calculatedStats = statsService.calculateStats(entries)
+      set({ userStats: calculatedStats })
+
+      // Optionally save stats to the server (but don't fail if this doesn't work)
+      statsService.submitStats(calculatedStats).catch((error) => {
+        console.error("Error saving stats to server:", error)
+        // Don't set error state for this to keep dashboard usable
+      })
     } catch (error) {
-      console.error("Error saving stats to server:", error)
-      // Don't set error state for this to keep dashboard usable
+      console.error("Error calculating stats:", error)
+
+      // Set safe default stats
+      set({
+        userStats: {
+          currentStreak: 0,
+          longestStreak: 0,
+          totalEntries: entries.length || 0,
+          wordCount: 0,
+          hasTodayEntry: false,
+        },
+      })
     }
   },
 
@@ -76,7 +123,17 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       get().calculateStats(entries)
     } catch (err) {
       console.error("Error fetching user stats:", err)
-      // Don't set error state for stats to keep dashboard usable
+
+      // Set default stats but don't set error state to keep dashboard usable
+      set({
+        userStats: {
+          currentStreak: 0,
+          longestStreak: 0,
+          totalEntries: 0,
+          wordCount: 0,
+          hasTodayEntry: false,
+        },
+      })
     } finally {
       set({ isLoadingStats: false })
     }

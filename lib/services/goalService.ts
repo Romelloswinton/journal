@@ -1,34 +1,33 @@
-// Service for handling Goal operations
-import { addDays } from "date-fns"
+// lib/services/goalService.ts
 
-// Type definitions
 export interface Goal {
   id: string
   name: string
   type: string
   description?: string
-  deadline: Date
+  deadline: string
   progress: number
-  createdAt: Date
-  updatedAt: Date
+  userId: string
+  createdAt: string
+  updatedAt: string
 }
 
-export interface CreateGoalInput {
+export interface CreateGoalData {
   name: string
   type: string
   description?: string
-  deadline: Date
+  deadline: string
 }
 
-export interface UpdateGoalInput {
+export interface UpdateGoalData {
   name?: string
   type?: string
   description?: string
-  deadline?: Date
+  deadline?: string
   progress?: number
 }
 
-// Functions for fetching goals
+// Fetch all goals for the current user
 export async function fetchGoals(): Promise<Goal[]> {
   try {
     const response = await fetch("/api/goals", {
@@ -39,27 +38,35 @@ export async function fetchGoals(): Promise<Goal[]> {
     })
 
     if (!response.ok) {
-      throw new Error(`Error: ${response.status}`)
+      // Handle different status codes appropriately
+      if (response.status === 404) {
+        // User not found or no goals - return empty array instead of throwing
+        console.warn("No goals found for user, returning empty array")
+        return []
+      }
+      if (response.status === 401) {
+        // Unauthorized - user not signed in
+        console.warn("User not authorized to fetch goals")
+        return []
+      }
+      // For other errors, still throw
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
-    const data = await response.json()
+    const goals = await response.json()
 
-    // Ensure dates are properly parsed
-    return data.map((goal: any) => ({
-      ...goal,
-      deadline: new Date(goal.deadline),
-      createdAt: new Date(goal.createdAt),
-      updatedAt: new Date(goal.updatedAt),
-    }))
+    // Ensure we always return an array
+    return Array.isArray(goals) ? goals : []
   } catch (error) {
-    console.error("Failed to fetch goals:", error)
+    console.error("Error fetching goals:", error)
+    // Instead of throwing, return empty array to prevent crashes
     return []
   }
 }
 
-// Function for creating a new goal
+// Create a new goal
 export async function createGoal(
-  goalData: CreateGoalInput
+  goalData: CreateGoalData
 ): Promise<Goal | null> {
   try {
     const response = await fetch("/api/goals", {
@@ -71,71 +78,115 @@ export async function createGoal(
     })
 
     if (!response.ok) {
-      throw new Error(`Error: ${response.status}`)
+      if (response.status === 401) {
+        throw new Error("Please sign in to create goals")
+      }
+      if (response.status === 404) {
+        throw new Error(
+          "User profile not found. Please complete your profile setup."
+        )
+      }
+      const errorData = await response.json()
+      throw new Error(
+        errorData.error || `Failed to create goal: ${response.statusText}`
+      )
     }
 
-    const data = await response.json()
-
-    // Ensure dates are properly parsed
-    return {
-      ...data,
-      deadline: new Date(data.deadline),
-      createdAt: new Date(data.createdAt),
-      updatedAt: new Date(data.updatedAt),
-    }
+    return await response.json()
   } catch (error) {
-    console.error("Failed to create goal:", error)
-    return null
+    console.error("Error creating goal:", error)
+    throw error
   }
 }
 
-// Function for updating a goal
+// Update an existing goal
 export async function updateGoal(
-  id: string,
-  goalData: UpdateGoalInput
+  goalId: string,
+  updates: UpdateGoalData
 ): Promise<Goal | null> {
   try {
-    const response = await fetch(`/api/goals/${id}`, {
+    const response = await fetch(`/api/goals/${goalId}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(goalData),
+      body: JSON.stringify(updates),
     })
 
     if (!response.ok) {
-      throw new Error(`Error: ${response.status}`)
+      if (response.status === 401) {
+        throw new Error("Please sign in to update goals")
+      }
+      if (response.status === 404) {
+        throw new Error("Goal not found")
+      }
+      const errorData = await response.json()
+      throw new Error(
+        errorData.error || `Failed to update goal: ${response.statusText}`
+      )
     }
 
-    const data = await response.json()
-
-    // Ensure dates are properly parsed
-    return {
-      ...data,
-      deadline: new Date(data.deadline),
-      createdAt: new Date(data.createdAt),
-      updatedAt: new Date(data.updatedAt),
-    }
+    return await response.json()
   } catch (error) {
-    console.error(`Failed to update goal ${id}:`, error)
-    return null
+    console.error("Error updating goal:", error)
+    throw error
   }
 }
 
-// Function for deleting a goal
-export async function deleteGoal(id: string): Promise<boolean> {
+// Delete a goal
+export async function deleteGoal(goalId: string): Promise<boolean> {
   try {
-    const response = await fetch(`/api/goals/${id}`, {
+    const response = await fetch(`/api/goals/${goalId}`, {
       method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
     })
 
     if (!response.ok) {
-      throw new Error(`Error: ${response.status}`)
+      if (response.status === 401) {
+        throw new Error("Please sign in to delete goals")
+      }
+      if (response.status === 404) {
+        throw new Error("Goal not found")
+      }
+      const errorData = await response.json()
+      throw new Error(
+        errorData.error || `Failed to delete goal: ${response.statusText}`
+      )
     }
 
-    return true
+    const result = await response.json()
+    return result.success === true
   } catch (error) {
-    console.error(`Failed to delete goal ${id}:`, error)
-    return false
+    console.error("Error deleting goal:", error)
+    throw error
+  }
+}
+
+// Get a specific goal by ID
+export async function fetchGoal(goalId: string): Promise<Goal | null> {
+  try {
+    const response = await fetch(`/api/goals/${goalId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("Please sign in to view goals")
+      }
+      if (response.status === 404) {
+        return null // Goal not found
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error("Error fetching goal:", error)
+    return null
   }
 }

@@ -51,6 +51,11 @@ model User {
   userStats      UserStats?      // New improved stats tracking
   threads        Thread[]        // New relation for threads
   rosebudConversations RosebudConversation[]
+  
+  // New Library Relations
+  savedLibraryJournals SavedLibraryJournal[]
+  savedLibraryPrompts  SavedLibraryPrompt[]
+  ideaSubmissions      IdeaSubmission[]
 }
 
 model UserProfile {
@@ -366,4 +371,99 @@ model Thread {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+// === NEW LIBRARY MODELS ===
+
+// Library Journal Template - the master template journals
+model LibraryJournal {
+  id          String   @id @default(cuid())
+  title       String
+  author      String
+  image       String
+  category    String   // "Situational", "Daily", "Framework"
+  description String?  @db.Text
+  content     Json?    // Journal prompts/questions as JSON
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  savedByUsers SavedLibraryJournal[]
+
+  @@index([category])
+  @@index([isActive])
+  @@map("library_journals")
+}
+
+// User's saved library journals
+model SavedLibraryJournal {
+  id        String   @id @default(cuid())
+  userId    String
+  journalId String
+  lastUsed  DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  // Relations
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journal LibraryJournal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, journalId])
+  @@index([userId])
+  @@index([lastUsed])
+  @@map("saved_library_journals")
+}
+
+// Library Prompt Template - the master prompt templates
+model LibraryPrompt {
+  id       String  @id @default(cuid())
+  text     String  @db.Text
+  category String
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  savedByUsers SavedLibraryPrompt[]
+
+  @@index([category])
+  @@index([isActive])
+  @@map("library_prompts")
+}
+
+// User's saved library prompts
+model SavedLibraryPrompt {
+  id       String   @id @default(cuid())
+  userId   String
+  promptId String
+  lastUsed DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  // Relations
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt LibraryPrompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, promptId])
+  @@index([userId])
+  @@index([lastUsed])
+  @@map("saved_library_prompts")
+}
+
+// User idea submissions
+model IdeaSubmission {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // "journal" or "prompt"
+  title       String?
+  description String   @db.Text
+  status      String   @default("pending") // "pending", "approved", "rejected"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("idea_submissions")
 }

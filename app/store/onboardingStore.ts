@@ -5,6 +5,7 @@
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { useTheme } from "@/components/theme/theme-provider" // Import theme context
 
 // Define types for all user-provided data during onboarding
 export type GoalId =
@@ -164,6 +165,9 @@ interface OnboardingState {
   skipCurrentStep: (router: AppRouterInstance) => void
   setCurrentStep: (step: OnboardingStep) => void
   setPathname: (pathname: string) => void
+
+  // New function to check onboarding status from the server
+  checkOnboardingStatus: () => Promise<boolean>
 }
 
 // Navigation order
@@ -264,7 +268,33 @@ const useOnboardingStore = create<OnboardingState>()(
           firstEntryWorry: worry,
           firstEntryPositive: positive,
         })
-        // Note: When navigating from first-check-in, we go to gemini-reflection which is a separate page
+        get().navigateToNextStep(router)
+      },
+
+      // Check onboarding status from the server
+      checkOnboardingStatus: async () => {
+        try {
+          const response = await fetch("/api/onboarding", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+
+          if (!response.ok) {
+            throw new Error("Failed to fetch onboarding status")
+          }
+
+          const data = await response.json()
+
+          // Update local state
+          set({ isOnboardingComplete: data.isOnboardingComplete })
+
+          return data.isOnboardingComplete
+        } catch (error) {
+          console.error("Error checking onboarding status:", error)
+          return false
+        }
       },
 
       completeOnboarding: async () => {

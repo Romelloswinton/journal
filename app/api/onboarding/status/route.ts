@@ -1,6 +1,7 @@
+// app/api/onboarding/status/route.ts
 import { auth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
 
 export async function GET() {
   try {
@@ -11,7 +12,7 @@ export async function GET() {
     }
 
     // Find the user profile using the userId (which is the Clerk ID)
-    const userProfile = await prisma.userProfile.findUnique({
+    const userProfile = await db.userProfile.findUnique({
       where: { userId: userId },
       select: { onboardingCompleted: true },
     })

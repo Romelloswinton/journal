@@ -86,14 +86,16 @@ export default function ChatInput({
       ref={containerRef}
       className={cn(
         "relative transition-all duration-200 bg-muted rounded-lg border border-border flex items-center",
-        isFocused && "ring-2 ring-primary/50",
+        // 🔧 REMOVED: Focus ring styling
+        // isFocused && "ring-2 ring-primary/50",
         hasContent && "pr-24" // Add space for send button
       )}
     >
       <Search
         className={cn(
-          "w-4 h-4 text-muted-foreground absolute left-3 self-start mt-3",
-          isFocused && "text-primary"
+          "w-4 h-4 text-muted-foreground absolute left-3 self-start mt-3"
+          // 🔧 REMOVED: Focus color change
+          // isFocused && "text-primary"
         )}
       />
 
@@ -107,8 +109,11 @@ export default function ChatInput({
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         rows={1}
-        className="w-full pl-9 pr-3 py-2 bg-transparent border-0 focus:outline-none resize-none text-foreground text-sm min-h-[40px] max-h-[120px] overflow-y-auto"
-        style={{ scrollbarWidth: "thin" }}
+        className="w-full pl-9 pr-3 py-2 bg-transparent border-0 focus:outline-none resize-none text-foreground text-sm min-h-[40px] max-h-[120px] overflow-y-auto leading-6"
+        style={{
+          scrollbarWidth: "thin",
+          lineHeight: "1.5", // 🔧 ADDED: Line height 1.5
+        }}
       />
 
       {/* Centered button container */}

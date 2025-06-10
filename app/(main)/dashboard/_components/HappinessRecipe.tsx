@@ -1,10 +1,11 @@
-// Updated HappinessRecipe.tsx
+// app/dashboard/_components/HappinessRecipe.tsx
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus } from "lucide-react"
+import { Plus, Heart } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@clerk/nextjs"
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,7 @@ import {
   updateGoal,
   deleteGoal,
   type Goal,
-  type CreateGoalInput,
+  type CreateGoalData, // Add this missing import
 } from "@/lib/services/goalService"
 
 import {
@@ -38,6 +39,8 @@ import {
 } from "@/lib/services/ingredientService"
 
 export default function HappinessRecipe() {
+  const { isSignedIn, isLoaded } = useAuth()
+
   // Modal states
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false)
   const [isAddIngredientOpen, setIsAddIngredientOpen] = useState(false)
@@ -47,12 +50,20 @@ export default function HappinessRecipe() {
   const [ingredients, setIngredients] = useState<HappinessIngredient[]>([])
 
   // Loading states
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch data on component mount
+  // Fetch data on component mount and when auth changes
   useEffect(() => {
     async function loadData() {
+      if (!isLoaded) return // Wait for auth to load
+
+      if (!isSignedIn) {
+        setGoals([])
+        setIngredients([])
+        return
+      }
+
       setIsLoading(true)
       setError(null)
 
@@ -68,16 +79,19 @@ export default function HappinessRecipe() {
       } catch (err) {
         console.error("Error loading happiness recipe data:", err)
         setError("Failed to load your happiness recipe data")
+        // Set empty arrays on error to prevent crashes
+        setGoals([])
+        setIngredients([])
       } finally {
         setIsLoading(false)
       }
     }
 
     loadData()
-  }, [])
+  }, [isSignedIn, isLoaded])
 
   // Handle form submissions
-  const handleGoalSubmit = async (goalData: CreateGoalInput) => {
+  const handleGoalSubmit = async (goalData: CreateGoalData) => {
     try {
       const newGoal = await createGoal(goalData)
 
@@ -86,6 +100,7 @@ export default function HappinessRecipe() {
       }
     } catch (err) {
       console.error("Error creating goal:", err)
+      setError("Failed to create goal. Please try again.")
     }
 
     // Close the modal
@@ -103,6 +118,7 @@ export default function HappinessRecipe() {
       }
     } catch (err) {
       console.error("Error creating ingredient:", err)
+      setError("Failed to create ingredient. Please try again.")
     }
 
     // Close the modal
@@ -145,7 +161,8 @@ export default function HappinessRecipe() {
       console.error(`Error deleting goal ${id}:`, err)
 
       // Refresh data on error
-      fetchGoals().then(setGoals)
+      const refreshedGoals = await fetchGoals()
+      setGoals(refreshedGoals)
     }
   }
 
@@ -165,7 +182,8 @@ export default function HappinessRecipe() {
       console.error(`Error deleting ingredient ${id}:`, err)
 
       // Refresh data on error
-      fetchIngredients().then(setIngredients)
+      const refreshedIngredients = await fetchIngredients()
+      setIngredients(refreshedIngredients)
     }
   }
 
@@ -183,61 +201,109 @@ export default function HappinessRecipe() {
       console.error(`Error updating goal progress ${id}:`, err)
 
       // Refresh data on error
-      fetchGoals().then(setGoals)
+      const refreshedGoals = await fetchGoals()
+      setGoals(refreshedGoals)
     }
   }
 
-  return (
-    <div>
-      <h3 className="text-sm font-medium text-muted-foreground tracking-wider mb-4">
-        💡 HAPPINESS RECIPE
-      </h3>
+  // Retry function for error state
+  const handleRetry = async () => {
+    if (!isSignedIn) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const [goalsData, ingredientsData] = await Promise.all([
+        fetchGoals(),
+        fetchIngredients(),
+      ])
+      setGoals(goalsData)
+      setIngredients(ingredientsData)
+    } catch (err) {
+      console.error("Error refreshing data:", err)
+      setError("Failed to refresh data")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Show loading state
+  if (!isLoaded || isLoading) {
+    return (
       <Card className="bg-card border-border shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-lg font-semibold text-card-foreground">
+              Happiness Recipe
+            </h4>
+            <Heart className="h-4 w-4 text-pink-500" />
+          </div>
+          <div className="flex items-center justify-center h-[200px]">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Show sign-in prompt for non-authenticated users
+  if (!isSignedIn) {
+    return (
+      <Card className="bg-card border-border shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-lg font-semibold text-card-foreground">
+              Happiness Recipe
+            </h4>
+            <Heart className="h-4 w-4 text-pink-500" />
+          </div>
+          <p className="text-xs text-muted-foreground mb-4">
+            Sign in to create your personal happiness recipe with goals and
+            daily habits
+          </p>
+          <div className="text-center py-8">
+            <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">
+              Create an account to start building your happiness recipe
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="bg-card border-border shadow-sm">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-lg font-semibold text-card-foreground">
+            Happiness Recipe
+          </h4>
+          <Heart className="h-4 w-4 text-pink-500" />
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Track your goals and daily ingredients for happiness
+        </p>
+
         {/* Fixed height container with scrolling */}
-        <CardContent className="p-4 h-[400px]">
-          {" "}
-          {/* Fixed height */}
-          {isLoading ? (
-            <div className="flex justify-center items-center h-full">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-            </div>
-          ) : error ? (
+        <div className="h-[300px]">
+          {error ? (
             <div className="text-center py-6 h-full flex flex-col justify-center">
-              <p className="text-destructive mb-4">{error}</p>
-              <Button
-                onClick={() => {
-                  setIsLoading(true)
-                  Promise.all([fetchGoals(), fetchIngredients()])
-                    .then(([goalsData, ingredientsData]) => {
-                      setGoals(goalsData)
-                      setIngredients(ingredientsData)
-                      setError(null)
-                    })
-                    .catch((err) => {
-                      console.error("Error refreshing data:", err)
-                      setError("Failed to refresh data")
-                    })
-                    .finally(() => {
-                      setIsLoading(false)
-                    })
-                }}
-              >
+              <p className="text-destructive text-sm mb-4">{error}</p>
+              <Button variant="outline" size="sm" onClick={handleRetry}>
                 Try Again
               </Button>
             </div>
           ) : ingredients.length > 0 || goals.length > 0 ? (
             <div className="space-y-4 h-full overflow-y-auto pr-2">
-              {" "}
-              {/* Added scrolling */}
               {/* Ingredients List */}
               {ingredients.length > 0 && (
                 <div>
                   <h5 className="text-xs font-medium text-card-foreground mb-2 sticky top-0 bg-card z-10 pb-1">
-                    Ingredients
+                    Daily Ingredients
                   </h5>
                   <div className="space-y-1.5">
-                    {" "}
-                    {/* Reduced spacing */}
                     {ingredients.map((ingredient) => (
                       <IngredientItem
                         key={ingredient.id}
@@ -254,6 +320,7 @@ export default function HappinessRecipe() {
                   </div>
                 </div>
               )}
+
               {/* Goals List */}
               {goals.length > 0 && (
                 <div>
@@ -261,8 +328,6 @@ export default function HappinessRecipe() {
                     Goals
                   </h5>
                   <div className="space-y-1.5">
-                    {" "}
-                    {/* Reduced spacing */}
                     {goals.map((goal) => (
                       <GoalItem
                         key={goal.id}
@@ -276,6 +341,7 @@ export default function HappinessRecipe() {
                   </div>
                 </div>
               )}
+
               {/* Add More Section - fixed at bottom */}
               <div className="sticky bottom-0 pt-2 pb-1 bg-card border-t border-border">
                 <div className="flex flex-wrap gap-2">
@@ -299,12 +365,13 @@ export default function HappinessRecipe() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col justify-center h-full">
+            <div className="flex flex-col justify-center h-full text-center">
+              <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
               <p className="text-muted-foreground mb-4 text-sm">
                 Let's add the ingredients to your happiness — habits or goals
                 that matter to you.
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 justify-center">
                 <Button
                   variant="outline"
                   size="sm"
@@ -324,12 +391,12 @@ export default function HappinessRecipe() {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </CardContent>
 
       {/* Goal Modal */}
       <Dialog open={isAddGoalOpen} onOpenChange={setIsAddGoalOpen}>
-        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden dark:bg-background">
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white">
             <DialogTitle className="text-2xl font-bold tracking-tight">
               Set a New Goal
@@ -350,7 +417,7 @@ export default function HappinessRecipe() {
 
       {/* Ingredient Modal */}
       <Dialog open={isAddIngredientOpen} onOpenChange={setIsAddIngredientOpen}>
-        <DialogContent className="sm:max-w-[500px] dark:bg-background">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Add to Your Happiness Recipe</DialogTitle>
             <DialogDescription>
@@ -364,6 +431,6 @@ export default function HappinessRecipe() {
           />
         </DialogContent>
       </Dialog>
-    </div>
+    </Card>
   )
 }

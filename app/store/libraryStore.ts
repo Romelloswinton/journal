@@ -1,16 +1,17 @@
-// store/libraryStore.ts
+// app/store/libraryStore.ts
 import { create } from "zustand"
 import { devtools, persist } from "zustand/middleware"
 import { toast } from "sonner"
-import { libraryService } from "@/prisma/services/libraryService"
 
-// Define types
+// Define types that match our API responses
 export interface Journal {
   id: string
   title: string
   author: string
   image: string
   category?: string
+  description?: string
+  content?: any
 }
 
 export interface SavedJournal extends Journal {
@@ -50,10 +51,10 @@ interface LibraryState {
   // Actions
   fetchJournals: () => Promise<void>
   fetchPrompts: () => Promise<void>
-  toggleSavePrompt: (id: string) => void
-  saveJournal: (journal: Journal) => void
-  removeSavedJournal: (id: string) => void
-  removeSavedPrompt: (id: string) => void
+  toggleSavePrompt: (id: string) => Promise<void>
+  saveJournal: (journal: Journal) => Promise<void>
+  removeSavedJournal: (id: string) => Promise<void>
+  removeSavedPrompt: (id: string) => Promise<void>
   setSelectedCategory: (category: string) => void
 }
 
@@ -72,134 +73,222 @@ export const useLibraryStore = create<LibraryState>()(
         isLoading: false,
         error: null,
 
-        // Fetch journals from service
+        // Fetch journals from API
         fetchJournals: async () => {
           set({ isLoading: true, error: null })
           try {
-            const { situational, daily, frameworks, saved } =
-              await libraryService.getJournals()
+            const response = await fetch("/api/library/journals")
+
+            if (!response.ok) {
+              if (response.status === 401) {
+                console.warn("User not authenticated")
+                set({
+                  situationalJournals: [],
+                  dailyJournals: [],
+                  frameworkJournals: [],
+                  savedJournals: [],
+                  isLoading: false,
+                  error: "Please sign in to view journals",
+                })
+                return
+              }
+              throw new Error(`HTTP ${response.status}`)
+            }
+
+            const data = await response.json()
 
             set({
-              situationalJournals: situational,
-              dailyJournals: daily,
-              frameworkJournals: frameworks,
-              savedJournals: saved,
+              situationalJournals: data.situational || [],
+              dailyJournals: data.daily || [],
+              frameworkJournals: data.frameworks || [],
+              savedJournals: data.saved || [],
               isLoading: false,
+              error: null,
             })
           } catch (error) {
             console.error("Error fetching journals:", error)
             set({
               error: "Failed to load journals",
               isLoading: false,
+              // Set empty arrays as fallback
+              situationalJournals: [],
+              dailyJournals: [],
+              frameworkJournals: [],
+              savedJournals: [],
             })
             toast.error("Failed to load journals")
           }
         },
 
-        // Fetch prompts from service
+        // Fetch prompts from API
         fetchPrompts: async () => {
           set({ isLoading: true, error: null })
           try {
-            const { prompts, saved } = await libraryService.getPrompts()
+            const response = await fetch("/api/library/prompts")
+
+            if (!response.ok) {
+              if (response.status === 401) {
+                console.warn("User not authenticated")
+                set({
+                  prompts: [],
+                  savedPrompts: [],
+                  isLoading: false,
+                  error: "Please sign in to view prompts",
+                })
+                return
+              }
+              throw new Error(`HTTP ${response.status}`)
+            }
+
+            const data = await response.json()
 
             set({
-              prompts,
-              savedPrompts: saved,
+              prompts: data.prompts || [],
+              savedPrompts: data.saved || [],
               isLoading: false,
+              error: null,
             })
           } catch (error) {
             console.error("Error fetching prompts:", error)
             set({
               error: "Failed to load prompts",
               isLoading: false,
+              prompts: [],
+              savedPrompts: [],
             })
             toast.error("Failed to load prompts")
           }
         },
 
         // Toggle prompt saved status
-        toggleSavePrompt: (id: string) => {
+        toggleSavePrompt: async (id: string) => {
           const prompts = get().prompts
-          const updatedPrompts = prompts.map((prompt) =>
-            prompt.id === id ? { ...prompt, isSaved: !prompt.isSaved } : prompt
-          )
+          const prompt = prompts.find((p) => p.id === id)
 
-          // Find the prompt that was toggled
-          const toggledPrompt = updatedPrompts.find((p) => p.id === id)
+          if (!prompt) return
 
-          if (toggledPrompt) {
-            // If prompt was saved, add to savedPrompts
-            if (toggledPrompt.isSaved) {
-              const newSavedPrompt: SavedPrompt = {
-                id: toggledPrompt.id,
-                text: toggledPrompt.text,
-                category: toggledPrompt.category,
-                lastUsed: "Just now",
-              }
-
-              // Add to saved prompts
-              set({
-                prompts: updatedPrompts,
-                savedPrompts: [...get().savedPrompts, newSavedPrompt],
+          try {
+            if (!prompt.isSaved) {
+              // Save the prompt
+              const response = await fetch("/api/library/prompts/save", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(prompt),
               })
 
-              toast.success("Prompt saved")
-            } else {
-              // If prompt was unsaved, remove from savedPrompts
-              const filteredPrompts = get().savedPrompts.filter(
-                (p) => p.id !== id
+              if (!response.ok) throw new Error("Failed to save prompt")
+
+              const savedPrompt = await response.json()
+
+              // Update local state
+              const updatedPrompts = prompts.map((p) =>
+                p.id === id ? { ...p, isSaved: true } : p
               )
 
               set({
                 prompts: updatedPrompts,
-                savedPrompts: filteredPrompts,
+                savedPrompts: [...get().savedPrompts, savedPrompt],
+              })
+
+              toast.success("Prompt saved")
+            } else {
+              // Remove the saved prompt
+              const response = await fetch(`/api/library/prompts/${id}`, {
+                method: "DELETE",
+              })
+
+              if (!response.ok) throw new Error("Failed to remove prompt")
+
+              // Update local state
+              const updatedPrompts = prompts.map((p) =>
+                p.id === id ? { ...p, isSaved: false } : p
+              )
+
+              set({
+                prompts: updatedPrompts,
+                savedPrompts: get().savedPrompts.filter((p) => p.id !== id),
               })
 
               toast.success("Prompt removed from saved")
             }
+          } catch (error) {
+            console.error("Error toggling prompt save status:", error)
+            toast.error("Failed to update prompt")
           }
         },
 
         // Save a journal
-        saveJournal: (journal: Journal) => {
-          const savedJournal: SavedJournal = {
-            ...journal,
-            lastUsed: "Just now",
+        saveJournal: async (journal: Journal) => {
+          try {
+            const response = await fetch("/api/library/journals/save", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(journal),
+            })
+
+            if (!response.ok) throw new Error("Failed to save journal")
+
+            const savedJournal = await response.json()
+
+            set({
+              savedJournals: [...get().savedJournals, savedJournal],
+            })
+
+            toast.success("Journal saved")
+          } catch (error) {
+            console.error("Error saving journal:", error)
+            toast.error("Failed to save journal")
           }
-
-          set({
-            savedJournals: [...get().savedJournals, savedJournal],
-          })
-
-          toast.success("Journal saved")
         },
 
         // Remove saved journal
-        removeSavedJournal: (id: string) => {
-          set({
-            savedJournals: get().savedJournals.filter(
-              (journal) => journal.id !== id
-            ),
-          })
+        removeSavedJournal: async (id: string) => {
+          try {
+            const response = await fetch(`/api/library/journals/${id}`, {
+              method: "DELETE",
+            })
 
-          toast.success("Journal removed from saved")
+            if (!response.ok) throw new Error("Failed to remove journal")
+
+            set({
+              savedJournals: get().savedJournals.filter(
+                (journal) => journal.id !== id
+              ),
+            })
+
+            toast.success("Journal removed from saved")
+          } catch (error) {
+            console.error("Error removing saved journal:", error)
+            toast.error("Failed to remove journal")
+          }
         },
 
         // Remove saved prompt
-        removeSavedPrompt: (id: string) => {
-          // Also update the main prompts list to reflect unsaved status
-          const updatedPrompts = get().prompts.map((prompt) =>
-            prompt.id === id ? { ...prompt, isSaved: false } : prompt
-          )
+        removeSavedPrompt: async (id: string) => {
+          try {
+            const response = await fetch(`/api/library/prompts/${id}`, {
+              method: "DELETE",
+            })
 
-          set({
-            savedPrompts: get().savedPrompts.filter(
-              (prompt) => prompt.id !== id
-            ),
-            prompts: updatedPrompts,
-          })
+            if (!response.ok) throw new Error("Failed to remove prompt")
 
-          toast.success("Prompt removed from saved")
+            // Also update the main prompts list to reflect unsaved status
+            const updatedPrompts = get().prompts.map((prompt) =>
+              prompt.id === id ? { ...prompt, isSaved: false } : prompt
+            )
+
+            set({
+              savedPrompts: get().savedPrompts.filter(
+                (prompt) => prompt.id !== id
+              ),
+              prompts: updatedPrompts,
+            })
+
+            toast.success("Prompt removed from saved")
+          } catch (error) {
+            console.error("Error removing saved prompt:", error)
+            toast.error("Failed to remove prompt")
+          }
         },
 
         // Set selected category for filtering
@@ -208,7 +297,11 @@ export const useLibraryStore = create<LibraryState>()(
         },
       }),
       {
-        name: "library-store", // Name for localStorage
+        name: "library-store",
+        // Only persist non-sensitive UI state
+        partialize: (state) => ({
+          selectedCategory: state.selectedCategory,
+        }),
       }
     )
   )

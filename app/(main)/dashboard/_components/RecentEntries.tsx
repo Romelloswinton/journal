@@ -45,7 +45,7 @@ export function RecentEntries({ entries }: RecentEntriesProps) {
               latestEntry.tags.slice(0, 2).map((tag) => (
                 <span
                   key={tag}
-                  className="text-xs px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded-full"
+                  className="text-xs px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200 rounded-full transition-colors"
                 >
                   {tag}
                 </span>
@@ -55,7 +55,7 @@ export function RecentEntries({ entries }: RecentEntriesProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs px-2 flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+              className="text-xs px-2 flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 transition-colors"
             >
               View all <ChevronRight className="h-3 w-3" />
             </Button>

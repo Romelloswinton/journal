@@ -35,18 +35,18 @@ export default function GoalItem({
 
   return (
     <div
-      className="p-2 bg-blue-50 dark:bg-blue-950 rounded-sm border border-blue-100 dark:border-blue-900 relative"
+      className="p-2 bg-blue-50 dark:bg-blue-950/50 rounded-sm border border-blue-100 dark:border-blue-800/50 relative transition-colors"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="flex items-center justify-between mb-1">
-        <span className="font-medium text-blue-800 dark:text-blue-200 truncate pr-1 text-xs">
+        <span className="font-medium text-blue-800 dark:text-blue-100 truncate pr-1 text-xs">
           {goal.name}
         </span>
 
         <div className="flex items-center space-x-1 shrink-0">
           {/* Date positioned to the left of the trash icon */}
-          <span className="text-[10px] text-blue-600 dark:text-blue-400 whitespace-nowrap">
+          <span className="text-[10px] text-blue-600 dark:text-blue-300 whitespace-nowrap">
             {format(goal.deadline, "MMM d, yy")}
           </span>
 
@@ -55,7 +55,7 @@ export default function GoalItem({
             <Button
               variant="ghost"
               size="icon"
-              className="h-5 w-5 p-0 bg-red-50 dark:bg-red-950 hover:bg-red-100 dark:hover:bg-red-900 text-red-500 dark:text-red-400"
+              className="h-5 w-5 p-0 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 dark:text-red-400 transition-colors"
               onClick={(e) => {
                 e.stopPropagation()
                 onDelete()
@@ -68,9 +68,9 @@ export default function GoalItem({
       </div>
 
       <div className="flex items-center gap-1 mb-0.5">
-        <div className="w-full bg-blue-200 dark:bg-blue-900 rounded-full h-1.5">
+        <div className="w-full bg-blue-200 dark:bg-blue-900/50 rounded-full h-1.5">
           <div
-            className="bg-blue-600 dark:bg-blue-500 h-1.5 rounded-full"
+            className="bg-blue-600 dark:bg-blue-400 h-1.5 rounded-full transition-all duration-300"
             style={{ width: `${goal.progress}%` }}
           ></div>
         </div>
@@ -80,25 +80,25 @@ export default function GoalItem({
           <Button
             variant="ghost"
             size="icon"
-            className="h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 dark:hover:bg-blue-800 p-0"
+            className="h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-800/50 hover:bg-blue-200 dark:hover:bg-blue-700/50 p-0 transition-colors"
             onClick={decrementProgress}
             disabled={goal.progress <= 0}
           >
-            <ChevronDown className="h-2.5 w-2.5 text-blue-800 dark:text-blue-200" />
+            <ChevronDown className="h-2.5 w-2.5 text-blue-800 dark:text-blue-100" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 dark:hover:bg-blue-800 p-0"
+            className="h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-800/50 hover:bg-blue-200 dark:hover:bg-blue-700/50 p-0 transition-colors"
             onClick={incrementProgress}
             disabled={goal.progress >= 100}
           >
-            <ChevronUp className="h-2.5 w-2.5 text-blue-800 dark:text-blue-200" />
+            <ChevronUp className="h-2.5 w-2.5 text-blue-800 dark:text-blue-100" />
           </Button>
         </div>
       </div>
 
-      <div className="flex justify-between items-center text-[10px] text-blue-600 dark:text-blue-400">
+      <div className="flex justify-between items-center text-[10px] text-blue-600 dark:text-blue-300">
         <span className="truncate max-w-[70px]">{goal.type}</span>
         <span>{goal.progress}% complete</span>
       </div>
