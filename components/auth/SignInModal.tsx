@@ -6,6 +6,8 @@ import { useState, useEffect } from "react"
 import { SignIn } from "@clerk/nextjs"
 import { X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useRouter } from "next/navigation"
+import { useUser } from "@clerk/nextjs"
 
 interface SignInModalProps {
   isOpen: boolean
@@ -18,6 +20,25 @@ export function SignInModal({
   onClose,
   onSwitchToSignUp,
 }: SignInModalProps) {
+  const router = useRouter()
+  const { isSignedIn, isLoaded } = useUser()
+
+  // 🔧 NEW: Enhanced redirect handling
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      console.log("✅ User signed in, redirecting to dashboard...")
+
+      // Close the modal first
+      onClose()
+
+      // Small delay to ensure smooth UX, then redirect
+      setTimeout(() => {
+        router.push("/dashboard")
+        router.refresh() // Ensure fresh data load
+      }, 300)
+    }
+  }, [isSignedIn, isLoaded, router, onClose])
+
   // Close on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -76,7 +97,7 @@ export function SignInModal({
                 </p>
               </div>
 
-              {/* Clerk SignIn component */}
+              {/* Clerk SignIn component with enhanced configuration */}
               <div className="p-4">
                 <SignIn
                   appearance={{
@@ -90,8 +111,12 @@ export function SignInModal({
                       footer: "hidden",
                     },
                   }}
+                  // 🔧 ENHANCED: Multiple redirect configurations for reliability
                   redirectUrl="/dashboard"
                   afterSignInUrl="/dashboard"
+                  signUpUrl="#" // Prevent default sign up, we handle this with onSwitchToSignUp
+                  // 🔧 NEW: Force redirect to dashboard on successful sign in
+                  afterSignUpUrl="/dashboard"
                 />
               </div>
 

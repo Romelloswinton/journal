@@ -5,7 +5,6 @@ import { v4 as uuidv4 } from "uuid"
 import useDashboardStore from "./dashboardStore"
 import { JournalTemplate } from "@/data/journalTemplatesData"
 import { toast } from "sonner"
-import { journalService } from "@/services/journalService"
 
 // Types and interfaces
 export interface JournalMetrics {
@@ -85,6 +84,155 @@ interface JournalEntryState {
   getRecentlyViewedEntries: (limit?: number) => JournalEntry[]
 }
 
+// 🔧 ENHANCED: API service functions with proper error handling
+const journalAPI = {
+  async getEntries(): Promise<JournalEntry[]> {
+    console.log("📖 Fetching journal entries from API...")
+
+    const response = await fetch("/api/journal", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+
+    console.log(`📡 API Response status: ${response.status}`)
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+
+      try {
+        const errorData = await response.json()
+        errorMessage = errorData.message || errorData.error || errorMessage
+      } catch {
+        try {
+          const textResponse = await response.text()
+          errorMessage = textResponse || errorMessage
+        } catch {
+          // Use default error message
+        }
+      }
+
+      throw new Error(errorMessage)
+    }
+
+    // 🔧 FIXED: Handle direct array response from your API
+    const data = await response.json()
+
+    // Your API returns the entries directly as an array
+    if (Array.isArray(data)) {
+      console.log(`✅ Successfully fetched ${data.length} journal entries`)
+      return data
+    } else {
+      throw new Error("Unexpected response format from server")
+    }
+  },
+
+  async createEntry(
+    entryData: Omit<JournalEntry, "id" | "createdAt" | "updatedAt">
+  ): Promise<JournalEntry> {
+    console.log("📝 Creating journal entry via API...")
+
+    const response = await fetch("/api/journal", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(entryData),
+    })
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+      try {
+        const errorData = await response.json()
+        errorMessage = errorData.message || errorMessage
+      } catch {
+        const textResponse = await response.text()
+        errorMessage = textResponse || errorMessage
+      }
+      throw new Error(errorMessage)
+    }
+
+    const createdEntry = await response.json()
+    console.log(`✅ Created entry with ID: ${createdEntry.id}`)
+    return createdEntry
+  },
+
+  async updateEntry(
+    id: string,
+    data: Partial<JournalEntry>
+  ): Promise<JournalEntry> {
+    console.log(`✏️ Updating journal entry ${id} via API...`)
+
+    const response = await fetch("/api/journal", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id, ...data }),
+    })
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+      try {
+        const errorData = await response.json()
+        errorMessage = errorData.message || errorMessage
+      } catch {
+        const textResponse = await response.text()
+        errorMessage = textResponse || errorMessage
+      }
+      throw new Error(errorMessage)
+    }
+
+    const updatedEntry = await response.json()
+    console.log(`✅ Updated entry with ID: ${id}`)
+    return updatedEntry
+  },
+
+  async deleteEntry(id: string): Promise<boolean> {
+    console.log(`🗑️ Deleting journal entry ${id} via API...`)
+
+    const response = await fetch(`/api/journal?id=${id}`, {
+      method: "DELETE",
+    })
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+      try {
+        const errorData = await response.json()
+        errorMessage = errorData.message || errorMessage
+      } catch {
+        const textResponse = await response.text()
+        errorMessage = textResponse || errorMessage
+      }
+      throw new Error(errorMessage)
+    }
+
+    console.log(`✅ Deleted entry with ID: ${id}`)
+    return true
+  },
+
+  async generateAIEntry(prompt: string): Promise<JournalEntry> {
+    // This would integrate with your AI service
+    // For now, creating a mock AI entry
+    const aiEntry: JournalEntry = {
+      id: uuidv4(),
+      title: "AI Generated Entry",
+      content: `Generated content based on: ${prompt}`,
+      tags: ["ai-generated"],
+      metrics: { mood: 7, energy: 6, clarity: 8 },
+      insights: ["This is an AI-generated insight"],
+      isAIGenerated: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      colorScheme: "purple",
+    }
+
+    // You would replace this with actual API call to your AI service
+    return aiEntry
+  },
+}
+
 // Create journal store
 const useJournalStore = create<JournalEntryState>()(
   persist(
@@ -104,21 +252,31 @@ const useJournalStore = create<JournalEntryState>()(
       },
       recentlyViewed: [],
 
-      // Fetch all journal entries
+      // 🔧 UPDATED: Fetch all journal entries with better error handling
       fetchEntries: async () => {
         set({ isLoading: true, error: null })
 
         try {
-          const entries = await journalService.getEntries()
-          set({ entries })
+          const entries = await journalAPI.getEntries()
+          set({ entries, isLoading: false, error: null })
 
           // Update stats after fetching entries
           get().updateStats()
-        } catch (error) {
-          console.error("Failed to fetch journal entries:", error)
-          set({ error: "Failed to load journal entries. Please try again." })
-        } finally {
-          set({ isLoading: false })
+
+          console.log(
+            `✅ Successfully loaded ${entries.length} journal entries`
+          )
+        } catch (error: unknown) {
+          console.error("❌ Failed to fetch journal entries:", error)
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Failed to load journal entries"
+          set({
+            error: errorMessage,
+            isLoading: false,
+          })
+          toast.error(errorMessage)
         }
       },
 
@@ -149,7 +307,7 @@ const useJournalStore = create<JournalEntryState>()(
         })
       },
 
-      // Create a new journal entry
+      // 🔧 UPDATED: Create a new journal entry with better error handling
       createEntry: async (entryData) => {
         const optimisticEntry: JournalEntry = {
           ...entryData,
@@ -165,13 +323,14 @@ const useJournalStore = create<JournalEntryState>()(
 
         try {
           // Actual API call
-          const createdEntry = await journalService.createEntry(entryData)
+          const createdEntry = await journalAPI.createEntry(entryData)
 
           // Update with server data
           set((state) => ({
             entries: state.entries.map((entry) =>
               entry.id === optimisticEntry.id ? createdEntry : entry
             ),
+            error: null,
           }))
 
           // Add to recently viewed
@@ -182,18 +341,25 @@ const useJournalStore = create<JournalEntryState>()(
 
           toast.success("Journal entry created successfully")
           return createdEntry
-        } catch (error) {
-          console.error("Failed to create journal entry:", error)
+        } catch (error: unknown) {
+          console.error("❌ Failed to create journal entry:", error)
 
           // Remove optimistic entry on error
           set((state) => ({
             entries: state.entries.filter(
               (entry) => entry.id !== optimisticEntry.id
             ),
-            error: "Failed to create journal entry. Please try again.",
+            error:
+              error instanceof Error
+                ? error.message
+                : "Failed to create journal entry",
           }))
 
-          toast.error("Failed to create journal entry")
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Failed to create journal entry"
+          toast.error(errorMessage)
           throw error
         }
       },
@@ -231,7 +397,7 @@ const useJournalStore = create<JournalEntryState>()(
         return get().createEntry(entryData)
       },
 
-      // Update an existing journal entry
+      // 🔧 UPDATED: Update an existing journal entry with better error handling
       updateEntry: async (id, data) => {
         // Store original entry for rollback
         const originalEntry = get().entries.find((entry) => entry.id === id)
@@ -252,7 +418,15 @@ const useJournalStore = create<JournalEntryState>()(
 
         try {
           // Actual API call
-          await journalService.updateEntry(id, data)
+          const updatedEntry = await journalAPI.updateEntry(id, data)
+
+          // Update with server response
+          set((state) => ({
+            entries: state.entries.map((entry) =>
+              entry.id === id ? updatedEntry : entry
+            ),
+            error: null,
+          }))
 
           // Update stats after updating an entry
           get().updateStats()
@@ -262,23 +436,30 @@ const useJournalStore = create<JournalEntryState>()(
 
           toast.success("Journal entry updated successfully")
           return Promise.resolve()
-        } catch (error) {
-          console.error(`Failed to update journal entry ${id}:`, error)
+        } catch (error: unknown) {
+          console.error(`❌ Failed to update journal entry ${id}:`, error)
 
           // Rollback on error
           set((state) => ({
             entries: state.entries.map((entry) =>
               entry.id === id ? originalEntry : entry
             ),
-            error: "Failed to update journal entry. Please try again.",
+            error:
+              error instanceof Error
+                ? error.message
+                : "Failed to update journal entry",
           }))
 
-          toast.error("Failed to update journal entry")
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Failed to update journal entry"
+          toast.error(errorMessage)
           return Promise.reject(error)
         }
       },
 
-      // Delete a journal entry
+      // 🔧 UPDATED: Delete a journal entry with better error handling
       deleteEntry: async (id: string) => {
         try {
           // Set loading state specifically for this deletion
@@ -297,7 +478,7 @@ const useJournalStore = create<JournalEntryState>()(
           }
 
           // Make the API call BEFORE updating the local state
-          await journalService.deleteEntry(id)
+          await journalAPI.deleteEntry(id)
 
           // Only update state AFTER successful API call
           set((state) => ({
@@ -306,6 +487,7 @@ const useJournalStore = create<JournalEntryState>()(
               (entryId) => entryId !== id
             ),
             isLoading: false,
+            error: null,
           }))
 
           // Update stats after successful deletion
@@ -313,31 +495,36 @@ const useJournalStore = create<JournalEntryState>()(
 
           toast.success("Journal entry deleted successfully")
           return true
-        } catch (error) {
-          console.error(`Failed to delete journal entry ${id}:`, error)
+        } catch (error: unknown) {
+          console.error(`❌ Failed to delete journal entry ${id}:`, error)
 
           // Reset loading state on error
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Failed to delete journal entry"
           set({
             isLoading: false,
-            error: "Failed to delete journal entry. Please try again.",
+            error: errorMessage,
           })
 
-          toast.error("Failed to delete journal entry")
+          toast.error(errorMessage)
           return false
         }
       },
 
-      // Generate an AI journal entry
+      // 🔧 UPDATED: Generate an AI journal entry
       generateAIEntry: async (prompt: string) => {
         set({ isLoading: true, error: null })
 
         try {
-          const generatedEntry = await journalService.generateAIEntry(prompt)
+          const generatedEntry = await journalAPI.generateAIEntry(prompt)
 
           // Add the generated entry to our list
           set((state) => ({
             entries: [generatedEntry, ...state.entries],
             isLoading: false,
+            error: null,
           }))
 
           // Add to recently viewed
@@ -348,14 +535,19 @@ const useJournalStore = create<JournalEntryState>()(
 
           toast.success("AI journal entry generated successfully")
           return generatedEntry
-        } catch (error) {
-          console.error("Failed to generate AI journal entry:", error)
+        } catch (error: unknown) {
+          console.error("❌ Failed to generate AI journal entry:", error)
+
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Failed to generate AI entry"
           set({
-            error: "Failed to generate AI entry. Please try again.",
+            error: errorMessage,
             isLoading: false,
           })
 
-          toast.error("Failed to generate AI journal entry")
+          toast.error(errorMessage)
           throw error
         }
       },

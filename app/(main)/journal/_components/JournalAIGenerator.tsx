@@ -24,7 +24,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import useJournalStore from "@/app/store/journalStore"
-import { getPromptCategories } from "@/prisma/services/dynamicPromptsService"
+import { getPromptCategories } from "@/services/dynamicPromptsService"
 
 export function JournalAIGenerator() {
   const router = useRouter()

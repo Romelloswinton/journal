@@ -124,7 +124,7 @@ model JournalEntry {
   @@index([categoryId])
 }
 
-// New enhanced journal entry model
+// 🔧 UPDATED: Enhanced journal entry model with missing fields
 model JournalEntry2 {
   id            String   @id @default(cuid())
   title         String
@@ -133,12 +133,18 @@ model JournalEntry2 {
   metrics       Json     // Store mood, energy, clarity as JSON
   insights      String[]
   isAIGenerated Boolean  @default(false)
+  
+  // 🔧 NEW FIELDS: Added the missing template and styling fields
+  templateId    String?  // Optional reference to template used to create this entry
+  colorScheme   String?  // Optional color scheme for UI theming (e.g., "amber", "blue", "green")
+  
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([userId])
+  @@index([templateId]) // Index for template-based queries
   @@map("JournalEntries2") // Use a new table name
 }
 

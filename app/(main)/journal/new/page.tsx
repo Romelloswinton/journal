@@ -1,9 +1,10 @@
 // app/journal/new/page.tsx
 "use client"
 
+import { useState } from "react"
 import RosebudInsightCard from "../../rosebud/_components/RosebudInsightCard"
 import { JournalForm } from "../_components/JournalForm"
-import { useState } from "react"
+import Header from "@/components/layout/Header"
 
 export default function NewJournalEntryPage() {
   const [journalContent, setJournalContent] = useState("")
@@ -14,11 +15,17 @@ export default function NewJournalEntryPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      {/* Rosebud insight card will appear if there's an insight in session storage */}
-      <RosebudInsightCard onAddToContent={handleAddRosebudInsight} />
+    <div className="min-h-screen bg-gray-50">
+      {/* Header component */}
+      <Header />
 
-      <JournalForm initialContent={journalContent} />
+      {/* Main content */}
+      <main className="max-w-4xl mx-auto p-6">
+        {/* Rosebud insight card will appear if there's an insight in session storage */}
+        <RosebudInsightCard onAddToContent={handleAddRosebudInsight} />
+
+        <JournalForm initialContent={journalContent} />
+      </main>
     </div>
   )
 }
